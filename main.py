@@ -52,7 +52,7 @@ def estimate_pose(corners, marker_size):
     success, rvec, tvec = cv2.solvePnP(obj_pts, img_pts, camera_matrix, dist_coeffs)
     return (rvec, tvec) if success else (None, None)
 
-cap = cv2.VideoCapture("rtsp://admin:cattuscamera1@192.168.3.123:554/onvif1")
+cap = cv2.VideoCapture(0)
 
 while True:
     ret, frame = cap.read()
