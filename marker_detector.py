@@ -40,11 +40,10 @@ class MarkerDetector:
             if marker_id not in self.detected_cats:
                 self.detected_cats[marker_id] = {
                     "tipo": "gato",
-                    "nome": f"Gato_{marker_id}",
                     "size": self.config.DEFAULT_MARKER_SIZE
                 }
-                print(f"[INFO] Novo gato detectado: Gato_{marker_id} (ID: {marker_id})")
-            
+                print(f"[INFO] Novo gato detectado: ID {marker_id}")
+
             return self.detected_cats[marker_id]
     
     def detect_markers(self, frame):
@@ -58,6 +57,9 @@ class MarkerDetector:
             cv2.aruco.drawDetectedMarkers(frame, corners, ids)
             
             for i, marker_id in enumerate(ids.flatten()):
+                # Converte marker_id para int Python nativo para evitar problemas de serialização
+                marker_id = int(marker_id)
+
                 # Obtém informações do marcador (pote ou gato)
                 info = self._get_marker_info(marker_id)
                 rvec, tvec = self.estimate_pose(corners[i], info["size"])
@@ -80,13 +82,19 @@ class MarkerDetector:
                     (center[0] - 20, center[1] - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2
                 )
-                
-                posicoes[info["nome"]] = {
-                    "tipo": info["tipo"], 
+
+                # Usa o ID do marcador como chave em vez do nome
+                if info["tipo"] == "gato":
+                    key = marker_id  # Para gatos, usa o ID diretamente
+                else:
+                    key = info["nome"]  # Para o pote, mantém o nome
+
+                posicoes[key] = {
+                    "tipo": info["tipo"],
                     "pos": tvec.flatten(),
                     "id": marker_id
                 }
-        
+
         return posicoes
     
     def get_detected_cats(self):

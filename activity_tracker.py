@@ -1,6 +1,7 @@
 import time
 import numpy as np
 from collections import deque
+from datetime import datetime
 
 class ActivityTracker:
     """Classe responsável pelo rastreamento de atividades dos gatos"""
@@ -10,10 +11,10 @@ class ActivityTracker:
         self.estado = {}
         self.pote_nome = config.POTE_RACAO["nome"]
     
-    def _ensure_cat_tracking(self, gato_nome):
+    def _ensure_cat_tracking(self, cat_id: int):
         """Garante que o gato está sendo rastreado"""
-        if gato_nome not in self.estado:
-            self.estado[gato_nome] = {
+        if cat_id not in self.estado:
+            self.estado[cat_id] = {
                 self.pote_nome: {
                     "comendo": False,
                     "start_time": None,
@@ -22,7 +23,7 @@ class ActivityTracker:
                     "tempo_estado": 0
                 }
             }
-            print(f"[INFO] Iniciando rastreamento para {gato_nome}")
+            print(f"[INFO] Iniciando rastreamento para gato ID {cat_id}")
     
     def update(self, posicoes):
         """Atualiza o estado de atividade baseado nas posições detectadas"""
@@ -31,23 +32,36 @@ class ActivityTracker:
             return
         
         # Atualiza rastreamento para cada gato detectado
-        for nome, dados in posicoes.items():
+        for identificador, dados in posicoes.items():
             if dados["tipo"] == "gato":
-                self._ensure_cat_tracking(nome)
+                # Converte identificador para int Python nativo
+                # Isso é importante para evitar problemas de serialização JSON
+                # quando o identificador vem de detecções numpy (como ArUco markers)
+                try:
+                    if isinstance(identificador, str):
+                        cat_id = int(identificador)
+                    else:
+                        # Converte tipos numpy para int Python nativo
+                        cat_id = int(identificador)
+                except (ValueError, TypeError):
+                    # Se não conseguir converter, usa hash como fallback
+                    cat_id = abs(hash(str(identificador))) % 1000
+                
+                self._ensure_cat_tracking(cat_id)
                 
                 # Calcula distância entre gato e pote
                 dist = np.linalg.norm(
                     dados["pos"] - posicoes[self.pote_nome]["pos"]
                 )
                 
-                cat_data = self.estado[nome][self.pote_nome]
+                cat_data = self.estado[cat_id][self.pote_nome]
                 cat_data["distancias"].append(dist)
                 dist_media = np.mean(cat_data["distancias"])
                 
                 # Atualiza estado de alimentação
-                self._update_feeding_state(nome, cat_data, dist_media)
+                self._update_feeding_state(cat_id, cat_data, dist_media)
     
-    def _update_feeding_state(self, gato_nome, dados, dist_media):
+    def _update_feeding_state(self, cat_id: int, dados, dist_media):
         """Atualiza o estado de alimentação baseado na distância média"""
         agora = time.time()
         
@@ -60,7 +74,9 @@ class ActivityTracker:
                 elif agora - dados["tempo_estado"] >= self.config.MIN_TIME_START:
                     dados["comendo"] = True
                     dados["start_time"] = agora
-                    print(f"[EVENTO] {gato_nome} começou a comer!")
+                    print(f"[EVENTO] Gato ID {cat_id} começou a comer!")
+                    # Notifica início da atividade
+                    self._on_activity_start(cat_id, "eating")
             else:
                 dados["ultimo_estado"] = False
         else:
@@ -71,7 +87,10 @@ class ActivityTracker:
                     dados["tempo_estado"] = agora
                 elif agora - dados["tempo_estado"] >= self.config.MIN_TIME_STOP:
                     dur = agora - dados["start_time"]
-                    print(f"[EVENTO] {gato_nome} parou de comer após {dur:.1f}s")
+                    print(f"[EVENTO] Gato ID {cat_id} parou de comer após {dur:.1f}s")
+                    # Notifica fim da atividade (converte timestamp para datetime)
+                    start_datetime = datetime.fromtimestamp(dados["start_time"])
+                    self._on_activity_end(cat_id, "eating", start_datetime)
                     dados["comendo"] = False
                     dados["start_time"] = None
             else:
@@ -83,7 +102,30 @@ class ActivityTracker:
     
     def cleanup_inactive_cats(self, active_cats):
         """Remove gatos que não estão mais sendo detectados"""
-        inactive_cats = [cat for cat in self.estado.keys() if cat not in active_cats]
-        for cat in inactive_cats:
-            print(f"[INFO] Removendo rastreamento de {cat} (não detectado)")
-            del self.estado[cat]
+        # Converte active_cats para IDs se necessário
+        active_cat_ids = []
+        for cat in active_cats:
+            try:
+                cat_id = int(cat) if isinstance(cat, str) else cat
+            except (ValueError, TypeError):
+                cat_id = abs(hash(str(cat))) % 1000
+            active_cat_ids.append(cat_id)
+        
+        inactive_cats = [cat_id for cat_id in self.estado.keys() if cat_id not in active_cat_ids]
+        for cat_id in inactive_cats:
+            print(f"[INFO] Removendo rastreamento de gato ID {cat_id} (não detectado)")
+            del self.estado[cat_id]
+            
+    def set_activity_notifier(self, notifier):
+        """Define o notificador de atividades"""
+        self.activity_notifier = notifier
+
+    def _on_activity_start(self, cat_id: int, activity_type: str):
+        """Chamado quando uma atividade inicia"""
+        if hasattr(self, 'activity_notifier'):
+            self.activity_notifier.notify_activity_start(cat_id, activity_type)
+
+    def _on_activity_end(self, cat_id: int, activity_type: str, start_time):
+        """Chamado quando uma atividade termina"""
+        if hasattr(self, 'activity_notifier'):
+            self.activity_notifier.notify_activity_end(cat_id, activity_type, start_time)

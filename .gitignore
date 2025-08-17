@@ -1,2 +1,6 @@
 __pycache__/
 .codellm/
+venv/
+*.log
+.env
+.vscode

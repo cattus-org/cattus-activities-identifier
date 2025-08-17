@@ -47,49 +47,57 @@ class DisplayManager:
         pote_nome = self.config.POTE_RACAO["nome"]
         if pote_nome not in posicoes:
             return
-        
-        y_offset = 30
-        for gato_nome, potes in estado.items():
-            if gato_nome not in posicoes:
+
+        # Posiciona no canto inferior direito
+        frame_height, frame_width = frame.shape[:2]
+        y_offset = frame_height - 30  # Começa 30 pixels acima da borda inferior
+
+        for cat_id, potes in estado.items():
+            # Verifica se o gato ainda está sendo detectado
+            if cat_id not in posicoes:
                 continue
-            
+
             dados = potes[pote_nome]
             if len(dados["distancias"]) == 0:
                 continue
-            
+
             dist_media = np.mean(dados["distancias"])
-            text = f"{gato_nome}: {dist_media*100:.1f} cm"
-            
+            text = f"Gato ID {cat_id}: {dist_media*100:.1f} cm"
+
+            # Calcula a largura do texto para posicioná-lo corretamente à direita
+            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
+            x_position = frame_width - text_size[0] - 10  # 10 pixels da borda direita
+
             cv2.putText(
                 frame, text,
-                (10, y_offset),
+                (x_position, y_offset),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2
             )
-            y_offset += 40
+            y_offset -= 40  # Move para cima para o próximo gato
     
     def _draw_feeding_status(self, frame, estado):
         """Desenha o status de alimentação"""
         pote_nome = self.config.POTE_RACAO["nome"]
         y_offset = frame.shape[0] - 60
-        
-        for gato_nome, potes in estado.items():
+
+        for cat_id, potes in estado.items():
             dados = potes[pote_nome]
-            
+
             if dados["comendo"]:
                 agora = time.time()
                 dur = agora - dados["start_time"]
-                text = f"{gato_nome} COMENDO ({dur:.1f}s)"
+                text = f"Gato ID {cat_id} COMENDO ({dur:.1f}s)"
                 color = (0, 0, 255)  # Vermelho
             else:
-                text = f"{gato_nome} NAO COMENDO"
+                text = f"Gato ID {cat_id} NAO COMENDO"
                 color = (255, 255, 255)  # Branco
-            
+
             cv2.putText(
                 frame, text,
                 (10, y_offset),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2
             )
-            y_offset += 30
+            y_offset -= 30
     
     def show_frame(self, frame):
         """Exibe o frame e verifica se deve sair"""
