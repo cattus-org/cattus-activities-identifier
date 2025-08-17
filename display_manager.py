@@ -1,0 +1,101 @@
+import cv2
+import time
+import numpy as np
+
+class DisplayManager:
+    """Classe responsável pela exibição e interface visual"""
+    
+    def __init__(self, config):
+        self.config = config
+    
+    def setup_window(self):
+        """Configura a janela de exibição"""
+        cv2.namedWindow(self.config.WINDOW_NAME, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(
+            self.config.WINDOW_NAME, 
+            self.config.WINDOW_WIDTH, 
+            self.config.WINDOW_HEIGHT
+        )
+    
+    def draw_info(self, frame, posicoes, estado):
+        """Desenha informações de distância e estado na tela"""
+        # Desenha informações dos marcadores detectados
+        self._draw_marker_info(frame, posicoes)
+        
+        # Desenha distâncias
+        self._draw_distances(frame, posicoes, estado)
+        
+        # Desenha estado de alimentação
+        self._draw_feeding_status(frame, estado)
+    
+    def _draw_marker_info(self, frame, posicoes):
+        """Desenha informações dos marcadores detectados"""
+        y_offset = 30
+        for nome, dados in posicoes.items():
+            text = f"{nome} (ID: {dados['id']}) - {dados['tipo'].upper()}"
+            color = (0, 255, 255) if dados['tipo'] == 'pote' else (255, 0, 255)
+            
+            cv2.putText(
+                frame, text,
+                (frame.shape[1] - 400, y_offset),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2
+            )
+            y_offset += 25
+    
+    def _draw_distances(self, frame, posicoes, estado):
+        """Desenha as distâncias entre gatos e pote"""
+        pote_nome = self.config.POTE_RACAO["nome"]
+        if pote_nome not in posicoes:
+            return
+        
+        y_offset = 30
+        for gato_nome, potes in estado.items():
+            if gato_nome not in posicoes:
+                continue
+            
+            dados = potes[pote_nome]
+            if len(dados["distancias"]) == 0:
+                continue
+            
+            dist_media = np.mean(dados["distancias"])
+            text = f"{gato_nome}: {dist_media*100:.1f} cm"
+            
+            cv2.putText(
+                frame, text,
+                (10, y_offset),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2
+            )
+            y_offset += 40
+    
+    def _draw_feeding_status(self, frame, estado):
+        """Desenha o status de alimentação"""
+        pote_nome = self.config.POTE_RACAO["nome"]
+        y_offset = frame.shape[0] - 60
+        
+        for gato_nome, potes in estado.items():
+            dados = potes[pote_nome]
+            
+            if dados["comendo"]:
+                agora = time.time()
+                dur = agora - dados["start_time"]
+                text = f"{gato_nome} COMENDO ({dur:.1f}s)"
+                color = (0, 0, 255)  # Vermelho
+            else:
+                text = f"{gato_nome} NAO COMENDO"
+                color = (255, 255, 255)  # Branco
+            
+            cv2.putText(
+                frame, text,
+                (10, y_offset),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2
+            )
+            y_offset += 30
+    
+    def show_frame(self, frame):
+        """Exibe o frame e verifica se deve sair"""
+        cv2.imshow(self.config.WINDOW_NAME, frame)
+        return cv2.waitKey(1) & 0xFF == ord('q')
+    
+    def cleanup(self):
+        """Limpa recursos da interface"""
+        cv2.destroyAllWindows()
