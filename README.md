@@ -68,4 +68,4 @@ O sistema utiliza uma arquitetura modular com os seguintes componentes principai
 - **Tracking**: Responsável pelo rastreamento e notificação de atividades
 - **API**: Integração com sistemas externos
 - **Core**: Funcionalidades centrais e utilitários
-- **Config**: Centralizaçã
+- **Config**: Centralização das principais configurações do projeto
