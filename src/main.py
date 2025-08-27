@@ -1,10 +1,15 @@
-from config import Config
-from marker_detector import MarkerDetector
-from activity_tracker import ActivityTracker
-from camera_manager import CameraManager
-from display_manager import DisplayManager
-from api_client import APIClient
-from activity_notifier import ActivityNotifier
+import sys
+import os
+# Adiciona o diretório raiz do projeto ao path para permitir importações
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from config.config import Config
+from src.core.marker_detector import MarkerDetector
+from src.tracking.activity_tracker import ActivityTracker
+from src.managers.camera_manager import CameraManager
+from src.managers.display_manager import DisplayManager
+from src.api.api_client import APIClient
+from src.tracking.activity_notifier import ActivityNotifier
 import logging
 
 def setup_logging():

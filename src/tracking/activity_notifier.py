@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Dict
 import logging
-from api_client import APIClient
+from ..api.api_client import APIClient
 
 class ActivityNotifier:
     """Gerencia notificações de atividades para a API"""
