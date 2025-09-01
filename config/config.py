@@ -49,12 +49,18 @@ class Config:
         
         # Tamanho padrão para marcadores de gatos detectados automaticamente
         self.DEFAULT_MARKER_SIZE = 0.02
-        
+
+        # Configurações do cache de posição do pote
+        self.BOWL_CACHE_ENABLED = True  # Habilita o cache de posição do pote
+        self.BOWL_CACHE_UPDATE_INTERVAL = 30.0  # Intervalo em segundos para atualizar a posição em cache
+        self.BOWL_CACHE_MAX_AGE = 300.0  # Tempo máximo em segundos para usar posição em cache
+        self.BOWL_CACHE_CONFIDENCE_THRESHOLD = 5  # Número mínimo de detecções para considerar posição confiável
+
         # Thresholds para detecção de atividade
-        self.ENTER_THRESH = 0.10
-        self.EXIT_THRESH = 0.20
+        self.ENTER_THRESH = 0.25
+        self.EXIT_THRESH = 0.30
         self.MIN_TIME_START = 2.0
-        self.MIN_TIME_STOP = 2.0
+        self.MIN_TIME_STOP = 5.0
         self.WINDOW_SIZE = 5
         
         # Matriz da câmera e coeficientes de distorção

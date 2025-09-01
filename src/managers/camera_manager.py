@@ -79,28 +79,48 @@ class CameraManager:
             return False
     
     def get_frame(self):
-        """Captura e retorna um frame da câmera com tratativa de erros"""
+        """Captura e retorna um frame da câmera com tratativa de erros aprimorada"""
         if not self.is_connected or self.cap is None:
             self.logger.warning("Câmera não conectada. Tentando reconectar...")
             if not self._initialize_camera():
                 return None
-        
+
+        # Usar atributo de instância para manter contagem entre chamadas
+        if not hasattr(self, '_consecutive_failures'):
+            self._consecutive_failures = 0
+        max_consecutive_failures = 5
+
         try:
             ret, frame = self.cap.read()
-            
-            if not ret or frame is None:
-                self.logger.warning("Falha ao capturar frame. Verificando conexão...")
+
+            # Verificar se o frame é válido
+            if not ret or frame is None or frame.size == 0:
+                self.logger.warning("Falha ao capturar frame válido. Verificando conexão...")
                 self.is_connected = False
-                
-                # Tentar reconectar
-                if self._initialize_camera():
-                    ret, frame = self.cap.read()
-                    return frame if ret else None
+                self._consecutive_failures += 1
+
+                # Se muitas falhas consecutivas, forçar reconexão
+                if self._consecutive_failures >= max_consecutive_failures:
+                    self.logger.info("Muitas falhas consecutivas. Tentando reconectar a câmera...")
+                    if not self._initialize_camera():
+                        return None
+                    self._consecutive_failures = 0
                 else:
-                    return None
-            
+                    # Tentar reconectar e capturar novamente
+                    if self._initialize_camera():
+                        ret, frame = self.cap.read()
+                        if ret and frame is not None and frame.size > 0:
+                            self._consecutive_failures = 0
+                            return frame
+                        else:
+                            return None
+                    else:
+                        return None
+
+            # Frame válido capturado
+            self._consecutive_failures = 0
             return frame
-            
+
         except Exception as e:
             self.logger.error(f"Erro ao capturar frame: {e}")
             self.is_connected = False

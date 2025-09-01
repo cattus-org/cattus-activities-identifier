@@ -1,17 +1,29 @@
 import cv2
 import numpy as np
+import time
+import logging
 
 class MarkerDetector:
     """Classe responsável pela detecção de marcadores ArUco"""
-    
+
     def __init__(self, config):
         self.config = config
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
         self.parameters = cv2.aruco.DetectorParameters()
         self.detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.parameters)
-        
+        self.logger = logging.getLogger(__name__)
+
         # Cache para armazenar gatos detectados dinamicamente
         self.detected_cats = {}
+
+        # Cache de posição do pote de ração
+        self.bowl_position_cache = {
+            "position": None,
+            "last_detected": None,
+            "last_updated": None,
+            "detection_count": 0,
+            "is_reliable": False
+        }
     
     def estimate_pose(self, corners, marker_size):
         """Estima a pose do marcador no espaço 3D"""
@@ -45,17 +57,83 @@ class MarkerDetector:
                 print(f"[INFO] Novo gato detectado: ID {marker_id}")
 
             return self.detected_cats[marker_id]
+
+    def _update_bowl_cache(self, position):
+        """Atualiza o cache de posição do pote"""
+        current_time = time.time()
+
+        # Incrementa contador de detecções
+        self.bowl_position_cache["detection_count"] += 1
+        self.bowl_position_cache["last_detected"] = current_time
+
+        # Verifica se deve atualizar a posição em cache
+        should_update = (
+            self.bowl_position_cache["position"] is None or
+            self.bowl_position_cache["last_updated"] is None or
+            (current_time - self.bowl_position_cache["last_updated"]) >= self.config.BOWL_CACHE_UPDATE_INTERVAL
+        )
+
+        if should_update:
+            self.bowl_position_cache["position"] = position.copy()
+            self.bowl_position_cache["last_updated"] = current_time
+
+            # Marca como confiável se tiver detecções suficientes
+            if self.bowl_position_cache["detection_count"] >= self.config.BOWL_CACHE_CONFIDENCE_THRESHOLD:
+                if not self.bowl_position_cache["is_reliable"]:
+                    self.bowl_position_cache["is_reliable"] = True
+                    self.logger.info(f"Cache de posição do pote agora é confiável (detecções: {self.bowl_position_cache['detection_count']})")
+
+            self.logger.debug(f"Cache de posição do pote atualizado: {position}")
+
+    def _get_cached_bowl_position(self):
+        """Retorna a posição em cache do pote se disponível e válida"""
+        if not self.config.BOWL_CACHE_ENABLED:
+            return None
+
+        cache = self.bowl_position_cache
+
+        # Verifica se há posição em cache
+        if cache["position"] is None or not cache["is_reliable"]:
+            return None
+
+        # Verifica se o cache não está muito antigo
+        current_time = time.time()
+        if cache["last_detected"] is None:
+            return None
+
+        age = current_time - cache["last_detected"]
+        if age > self.config.BOWL_CACHE_MAX_AGE:
+            self.logger.warning(f"Cache de posição do pote expirado (idade: {age:.1f}s)")
+            return None
+
+        return cache["position"]
+
+    def get_bowl_cache_info(self):
+        """Retorna informações sobre o estado do cache do pote"""
+        cache = self.bowl_position_cache
+        current_time = time.time()
+
+        info = {
+            "has_position": cache["position"] is not None,
+            "is_reliable": cache["is_reliable"],
+            "detection_count": cache["detection_count"],
+            "age_seconds": current_time - cache["last_detected"] if cache["last_detected"] else None,
+            "last_updated_seconds": current_time - cache["last_updated"] if cache["last_updated"] else None
+        }
+
+        return info
     
     def detect_markers(self, frame):
         """Detecta marcadores no frame e retorna suas posições"""
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         corners, ids, _ = self.detector.detectMarkers(gray)
         posicoes = {}
-        
+        bowl_detected = False
+
         if ids is not None:
             # Desenha marcadores detectados
             cv2.aruco.drawDetectedMarkers(frame, corners, ids)
-            
+
             for i, marker_id in enumerate(ids.flatten()):
                 # Converte marker_id para int Python nativo para evitar problemas de serialização
                 marker_id = int(marker_id)
@@ -63,18 +141,18 @@ class MarkerDetector:
                 # Obtém informações do marcador (pote ou gato)
                 info = self._get_marker_info(marker_id)
                 rvec, tvec = self.estimate_pose(corners[i], info["size"])
-                
+
                 if tvec is None:
                     continue
-                
+
                 # Desenha eixos do marcador
                 cv2.drawFrameAxes(
-                    frame, 
-                    self.config.camera_matrix, 
-                    self.config.dist_coeffs, 
+                    frame,
+                    self.config.camera_matrix,
+                    self.config.dist_coeffs,
                     rvec, tvec, 0.03
                 )
-                
+
                 # Adiciona label com ID do marcador
                 center = np.mean(corners[i][0], axis=0).astype(int)
                 cv2.putText(
@@ -88,6 +166,9 @@ class MarkerDetector:
                     key = marker_id  # Para gatos, usa o ID diretamente
                 else:
                     key = info["nome"]  # Para o pote, mantém o nome
+                    bowl_detected = True
+                    # Atualiza cache de posição do pote
+                    self._update_bowl_cache(tvec.flatten())
 
                 posicoes[key] = {
                     "tipo": info["tipo"],
@@ -95,7 +176,70 @@ class MarkerDetector:
                     "id": marker_id
                 }
 
+        # Se o pote não foi detectado, tenta usar posição em cache
+        if not bowl_detected and self.config.BOWL_CACHE_ENABLED:
+            cached_position = self._get_cached_bowl_position()
+            if cached_position is not None:
+                bowl_name = self.config.POTE_RACAO["nome"]
+                posicoes[bowl_name] = {
+                    "tipo": "pote",
+                    "pos": cached_position,
+                    "id": self.config.POTE_RACAO_ID,
+                    "from_cache": True  # Indica que veio do cache
+                }
+
+                # Desenha indicador visual de que está usando cache
+                self._draw_cached_bowl_indicator(frame, cached_position)
+
+                cache_info = self.get_bowl_cache_info()
+                self.logger.debug(f"Usando posição em cache do pote (idade: {cache_info['age_seconds']:.1f}s)")
+
         return posicoes
+
+    def _draw_cached_bowl_indicator(self, frame, position):
+        """Desenha um indicador visual quando está usando posição em cache do pote"""
+        # Projeta a posição 3D para 2D na tela
+        try:
+            # Usa uma posição aproximada na tela baseada na posição 3D
+            # Como não temos os corners originais, fazemos uma projeção simples
+            img_points, _ = cv2.projectPoints(
+                np.array([[0, 0, 0]], dtype=np.float32),
+                np.array([[0, 0, 0]], dtype=np.float32),  # rvec zero
+                position.reshape(3, 1),  # tvec
+                self.config.camera_matrix,
+                self.config.dist_coeffs
+            )
+
+            center = tuple(img_points[0][0].astype(int))
+
+            # Desenha círculo pontilhado para indicar posição em cache
+            cv2.circle(frame, center, 30, (0, 255, 255), 2)  # Amarelo
+            cv2.circle(frame, center, 35, (0, 255, 255), 1)  # Amarelo
+
+            # Adiciona texto indicando cache
+            cv2.putText(
+                frame, "CACHE",
+                (center[0] - 25, center[1] + 50),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2
+            )
+
+        except Exception as e:
+            self.logger.debug(f"Erro ao desenhar indicador de cache: {e}")
+
+    def get_detected_cats(self):
+        """Retorna lista de gatos detectados dinamicamente"""
+        return self.detected_cats.copy()
+
+    def reset_bowl_cache(self):
+        """Reseta o cache de posição do pote"""
+        self.bowl_position_cache = {
+            "position": None,
+            "last_detected": None,
+            "last_updated": None,
+            "detection_count": 0,
+            "is_reliable": False
+        }
+        self.logger.info("Cache de posição do pote resetado")
     
     def get_detected_cats(self):
         """Retorna lista de gatos detectados dinamicamente"""
