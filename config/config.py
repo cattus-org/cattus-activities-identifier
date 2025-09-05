@@ -30,12 +30,15 @@ class Config:
         self.WINDOW_NAME = "Deteccao Gato/Pote"
         
         # URL da câmera RTSP
-        self.RTSP_URL = "rtsp://admin:cattuscamera2025@10.93.191.160:554/onvif1"
+        self.RTSP_URL = "rtsp://admin:cattuscamera2025@192.168.1.72:554/onvif1"
         
         # Configurações da câmera
         self.CAMERA_WIDTH = 1920
         self.CAMERA_HEIGHT = 1080
         self.CAMERA_BUFFER_SIZE = 1
+
+        # Quantidade de frames capturados para resetar a conexão da câmera
+        self.CAMERA_RESET_FRAME_COUNT = 300
         
         # ID do pote de ração (será excluído da detecção automática)
         self.POTE_RACAO_ID = 0

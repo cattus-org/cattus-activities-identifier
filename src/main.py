@@ -36,12 +36,7 @@ def main():
 
     # Inicializa componentes
     config = Config()
-    camera_manager = CameraManager(
-        rtsp_url=config.RTSP_URL,
-        camera_width=config.CAMERA_WIDTH,
-        camera_height=config.CAMERA_HEIGHT,
-        buffer_size=config.CAMERA_BUFFER_SIZE
-    )
+    camera_manager = CameraManager(config)
     marker_detector = MarkerDetector(config)
     activity_tracker = ActivityTracker(config)
     display_manager = DisplayManager(config)
