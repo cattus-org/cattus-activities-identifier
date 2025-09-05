@@ -13,7 +13,7 @@ class Config:
         self.API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:3000")  # Ajuste para sua URL
         self.API_KEY = os.getenv("API_KEY")  # Token de autenticação (fallback para valor padrão)
         self.API_TIMEOUT = 10  # Timeout em segundos
-        self.API_ENABLED = True  # Flag para habilitar/desabilitar envio para API
+        self.API_ENABLED = False  # Flag para habilitar/desabilitar envio para API
 
         # Mapeamento de tipos de atividade (opcional)
         self.ACTIVITY_TYPE_MAPPING = {
@@ -30,7 +30,7 @@ class Config:
         self.WINDOW_NAME = "Deteccao Gato/Pote"
         
         # URL da câmera RTSP
-        self.RTSP_URL = "rtsp://admin:cattuscamera2025@192.168.1.72:554/onvif1"
+        self.RTSP_URL = "rtsp://admin:cattuscamera2025@10.93.191.160:554/onvif1"
         
         # Configurações da câmera
         self.CAMERA_WIDTH = 1920
@@ -38,7 +38,7 @@ class Config:
         self.CAMERA_BUFFER_SIZE = 1
         
         # ID do pote de ração (será excluído da detecção automática)
-        self.POTE_RACAO_ID = 10
+        self.POTE_RACAO_ID = 0
         
         # Configuração do pote de ração
         self.POTE_RACAO = {
@@ -52,13 +52,13 @@ class Config:
 
         # Configurações do cache de posição do pote
         self.BOWL_CACHE_ENABLED = True  # Habilita o cache de posição do pote
-        self.BOWL_CACHE_UPDATE_INTERVAL = 30.0  # Intervalo em segundos para atualizar a posição em cache
+        self.BOWL_CACHE_UPDATE_INTERVAL = 10.0  # Intervalo em segundos para atualizar a posição em cache
         self.BOWL_CACHE_MAX_AGE = 300.0  # Tempo máximo em segundos para usar posição em cache
         self.BOWL_CACHE_CONFIDENCE_THRESHOLD = 5  # Número mínimo de detecções para considerar posição confiável
 
         # Thresholds para detecção de atividade
-        self.ENTER_THRESH = 0.25
-        self.EXIT_THRESH = 0.30
+        self.ENTER_THRESH = 0.65
+        self.EXIT_THRESH = 0.70
         self.MIN_TIME_START = 2.0
         self.MIN_TIME_STOP = 5.0
         self.WINDOW_SIZE = 5
