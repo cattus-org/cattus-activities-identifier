@@ -76,7 +76,7 @@ class CameraManager:
         max_consecutive_failures = 5
 
         self._frame_count += 1
-        if self._frame_count >= self.config.CAMERA_RESET_FRAME_COUNT:
+        if self.config.ENABLE_CAMERA_RESET and self._frame_count >= self.config.CAMERA_RESET_FRAME_COUNT:
             self.logger.info("Reinicializando conexão da câmera para limpar buffer interno")
             self._initialize_camera()
             self._frame_count = 0

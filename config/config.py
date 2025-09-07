@@ -13,7 +13,7 @@ class Config:
         self.API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:3000")  # Ajuste para sua URL
         self.API_KEY = os.getenv("API_KEY")  # Token de autenticação (fallback para valor padrão)
         self.API_TIMEOUT = 10  # Timeout em segundos
-        self.API_ENABLED = False  # Flag para habilitar/desabilitar envio para API
+        self.API_ENABLED = True  # Flag para habilitar/desabilitar envio para API
 
         # Mapeamento de tipos de atividade (opcional)
         self.ACTIVITY_TYPE_MAPPING = {
@@ -39,6 +39,9 @@ class Config:
 
         # Quantidade de frames capturados para resetar a conexão da câmera
         self.CAMERA_RESET_FRAME_COUNT = 300
+
+        # Flag para habilitar/desabilitar o reset da conexão da câmera após certo número de frames
+        self.ENABLE_CAMERA_RESET = True
         
         # ID do pote de ração (será excluído da detecção automática)
         self.POTE_RACAO_ID = 0
@@ -60,17 +63,21 @@ class Config:
         self.BOWL_CACHE_CONFIDENCE_THRESHOLD = 5  # Número mínimo de detecções para considerar posição confiável
 
         # Thresholds para detecção de atividade
-        self.ENTER_THRESH = 0.65
-        self.EXIT_THRESH = 0.70
-        self.MIN_TIME_START = 2.0
-        self.MIN_TIME_STOP = 5.0
-        self.WINDOW_SIZE = 5
-        
+        self.ENTER_THRESH = 0.55
+        self.EXIT_THRESH = 0.60
+        self.MIN_TIME_START = 4.0
+        self.MIN_TIME_STOP = 3.0
+        self.WINDOW_SIZE = 8
+
+        # Tempo em segundos para manter memória de gato inativo
+        self.CAT_INACTIVITY_TIMEOUT = 5
+        self.MIN_ACTIVITY_DURATION_TO_REGISTER = 5  # Duração mínima da atividade para registrar no banco
+
         # Matriz da câmera e coeficientes de distorção
         self.camera_matrix = np.array([
             [1000, 0, 640],
             [0, 1000, 360],
             [0, 0, 1]
         ], dtype=np.float32)
-        
+
         self.dist_coeffs = np.zeros((5, 1), dtype=np.float32)
