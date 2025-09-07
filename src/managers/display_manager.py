@@ -121,7 +121,7 @@ class DisplayManager:
 
         # Posiciona no canto superior esquerdo
         y_start = 30
-
+        x_start = 800
         # Status do cache
         if cache_info["has_position"]:
             status = "ATIVO" if cache_info["is_reliable"] else "INICIALIZANDO"
@@ -132,7 +132,7 @@ class DisplayManager:
 
         cv2.putText(
             frame, f"Cache Pote: {status}",
-            (10, y_start),
+            (x_start, y_start),
             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2
         )
 
@@ -143,7 +143,7 @@ class DisplayManager:
             # Número de detecções
             cv2.putText(
                 frame, f"Deteccoes: {cache_info['detection_count']}",
-                (10, y_start),
+                (x_start, y_start),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1
             )
 
@@ -152,7 +152,7 @@ class DisplayManager:
                 y_start += 20
                 cv2.putText(
                     frame, f"Idade: {cache_info['age_seconds']:.1f}s",
-                    (10, y_start),
+                    (x_start, y_start),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1
                 )
 
