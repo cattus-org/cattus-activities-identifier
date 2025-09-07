@@ -24,6 +24,12 @@ class CameraManager:
 
         self.reconnecting = False  # Flag para indicar se está reconectando
 
+        # Correção: definir frame_lock e variáveis para captura contínua
+        self.frame_lock = threading.Lock()
+        self.latest_frame = None
+        self.running = True
+        self.capture_thread = None
+
         self._initialize_camera_async()
 
     def _initialize_camera(self):
@@ -47,6 +53,11 @@ class CameraManager:
                     self.is_connected = True
                     self.logger.info("Conexão com a câmera estabelecida com sucesso.")
                     self.reconnecting = False
+                    # Iniciar thread de captura contínua
+                    if self.capture_thread is None or not self.capture_thread.is_alive():
+                        self.running = True
+                        self.capture_thread = threading.Thread(target=self._capture_loop, daemon=True)
+                        self.capture_thread.start()
                     return
                 else:
                     self.logger.warning(f"Falha ao conectar na câmera. Tentativa {attempt + 1} de {max_retries}.")
@@ -85,16 +96,29 @@ class CameraManager:
 
         return True
 
-    def get_frame(self):
-        with self.connection_lock:
-            if not self.is_connected or self.cap is None:
-                self.logger.warning("Câmera não conectada. Tentando reconectar...")
-                self._initialize_camera_async()
-                # Evita loop rápido que consome CPU
-                time.sleep(0.5)
-                return None
+    def _capture_loop(self):
+        max_discard_frames = self.config.CAMERA_MAX_DISCARD_FRAMES
+        while self.running:
+            with self.connection_lock:
+                if not self.is_connected or self.cap is None:
+                    cap = None
+                else:
+                    cap = self.cap
 
-            ret, frame = self.cap.read()
+            if cap is None:
+                self.logger.debug("Capture thread: camera not connected, sleeping.")
+                time.sleep(0.1)
+                continue
+
+            ret, frame = cap.read()
+
+            discard_count = 0
+            while discard_count < max_discard_frames:
+                ret2, frame2 = cap.read()
+                if not ret2:
+                    break
+                frame = frame2
+                discard_count += 1
 
             if not ret or not self._is_frame_valid(frame):
                 self.consecutive_failures += 1
@@ -104,13 +128,47 @@ class CameraManager:
                     self.logger.warning("Número máximo de falhas consecutivas atingido. Reiniciando conexão da câmera.")
                     self._initialize_camera_async()
                     self.consecutive_failures = 0
-
-                # Evita loop rápido que consome CPU
-                time.sleep(0.5)
-                return None
+                time.sleep(0.1)
+                continue
 
             self.consecutive_failures = 0
-            return frame
+
+            with self.frame_lock:
+                self.latest_frame = frame
+
+            time.sleep(0.03)  # Ajuste do sleep para balancear uso de CPU e delay
+        self.logger.info("Capture thread stopped.")
+    def release(self):
+        self.logger.info("Releasing camera manager resources.")
+        self.running = False
+        if self.capture_thread is not None:
+            self.capture_thread.join(timeout=5)
+            if self.capture_thread.is_alive():
+                self.logger.warning("Capture thread did not stop after join timeout.")
+        with self.connection_lock:
+            if self.cap is not None:
+                self.cap.release()
+                self.cap = None
+            self.is_connected = False
+    def release(self):
+        self.logger.info("Releasing camera manager resources.")
+        self.running = False
+        if self.capture_thread is not None:
+            self.capture_thread.join(timeout=5)
+            if self.capture_thread.is_alive():
+                self.logger.warning("Capture thread did not stop after join timeout.")
+
+        with self.connection_lock:
+            if self.cap is not None:
+                self.cap.release()
+                self.cap = None
+            self.is_connected = False
+
+    def get_frame(self):
+        with self.frame_lock:
+            if self.latest_frame is None:
+                return None
+            return self.latest_frame.copy()
 
     def is_camera_connected(self):
         with self.connection_lock:
@@ -128,6 +186,10 @@ class CameraManager:
         self._initialize_camera_async()
 
     def release(self):
+        self.running = False
+        if self.capture_thread is not None:
+            self.capture_thread.join(timeout=2)
+
         with self.connection_lock:
             if self.cap is not None:
                 self.cap.release()

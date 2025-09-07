@@ -36,6 +36,7 @@ class Config:
         self.CAMERA_WIDTH = 1920
         self.CAMERA_HEIGHT = 1080
         self.CAMERA_BUFFER_SIZE = 1
+        self.CAMERA_MAX_DISCARD_FRAMES = 5  # Maximum number of frames to discard in capture loop
 
         # Quantidade de frames capturados para resetar a conexão da câmera
         self.CAMERA_RESET_FRAME_COUNT = 300
