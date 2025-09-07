@@ -64,8 +64,8 @@ class Config:
         self.BOWL_CACHE_CONFIDENCE_THRESHOLD = 5  # Número mínimo de detecções para considerar posição confiável
 
         # Thresholds para detecção de atividade
-        self.ENTER_THRESH = 0.55
-        self.EXIT_THRESH = 0.60
+        self.ENTER_THRESH = 0.45
+        self.EXIT_THRESH = 0.50
         self.MIN_TIME_START = 4.0
         self.MIN_TIME_STOP = 3.0
         self.WINDOW_SIZE = 8
