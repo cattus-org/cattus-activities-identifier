@@ -73,7 +73,8 @@ class Config:
         self.CAT_INACTIVITY_TIMEOUT = 3
         self.MIN_ACTIVITY_DURATION_TO_REGISTER = 5  # Duração mínima da atividade para registrar no banco
 
-        self.FRAME_VARIANCE_THRESHOLD = 3
+        self.FRAME_VARIANCE_THRESHOLD = 5
+        self.MAX_CONSECUTIVE_FAILURES = 3
 
         # Matriz da câmera e coeficientes de distorção
         self.camera_matrix = np.array([

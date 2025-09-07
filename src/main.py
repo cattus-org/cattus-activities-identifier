@@ -18,9 +18,6 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    logger.info("Iniciando sistema...")
-
-    config = None
     try:
         from config.config import Config
         config = Config()
@@ -39,10 +36,13 @@ def main():
 
     try:
         logger.info("Sistema iniciado com sucesso")
+        display_manager.setup_window()
 
         while True:
             frame = camera_manager.get_frame()
+
             if frame is None:
+                # Frame inválido ou câmera desconectada, aguarda um pouco antes de tentar novamente
                 time.sleep(0.1)
                 continue
 
@@ -51,12 +51,8 @@ def main():
             activity_tracker.cleanup_inactive_cats(list(markers.keys()))
 
             display_manager.draw_info(frame, markers, activity_tracker.estado, marker_detector)
-            display_manager.setup_window()
 
-            if display_manager.show_frame(frame):
-                break
-
-            time.sleep(0.01)
+            display_manager.show_frame(frame)
 
     except KeyboardInterrupt:
         logger.info("Interrupção pelo usuário. Finalizando sistema...")
