@@ -1,8 +1,9 @@
 import time
-import numpy as np
-from collections import deque
-from datetime import datetime
 import logging
+import threading
+import numpy as np
+from datetime import datetime
+from collections import deque
 
 class ActivityTracker:
     """Classe responsável pelo rastreamento de atividades dos gatos"""
@@ -152,15 +153,18 @@ class ActivityTracker:
         """Define o notificador de atividades"""
         self.activity_notifier = notifier
 
+
     def _on_activity_start(self, cat_id: int, activity_type: str):
         """Chamado quando uma atividade inicia"""
         if hasattr(self, 'activity_notifier'):
-            self.activity_notifier.notify_activity_start(cat_id, activity_type)
+            # Executa a notificação em uma thread separada para não bloquear o fluxo principal
+            threading.Thread(target=self.activity_notifier.notify_activity_start, args=(cat_id, activity_type), daemon=True).start()
 
     def _on_activity_end(self, cat_id: int, activity_type: str, start_time):
         """Chamado quando uma atividade termina"""
         if hasattr(self, 'activity_notifier'):
-            self.activity_notifier.notify_activity_end(cat_id, activity_type, start_time)
+            # Executa a notificação em uma thread separada para não bloquear o fluxo principal
+            threading.Thread(target=self.activity_notifier.notify_activity_end, args=(cat_id, activity_type, start_time), daemon=True).start()
 
     def remove_cat(self, cat_id: int):
         """Remove explicitamente um gato do rastreamento e do last_seen"""
