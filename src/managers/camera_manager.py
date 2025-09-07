@@ -1,151 +1,160 @@
 import cv2
 import time
 import logging
-from threading import Lock
-
-from config.config import Config
+import threading
+import numpy as np
 
 class CameraManager:
-    def __init__(self, config: Config):
+    def __init__(self, config):
         self.config = config
         self.rtsp_url = config.RTSP_URL
         self.camera_width = config.CAMERA_WIDTH
         self.camera_height = config.CAMERA_HEIGHT
         self.buffer_size = config.CAMERA_BUFFER_SIZE
-        self.connection_timeout = 10
-        self.max_retries = 3
-        self.retry_delay = 5
+
         self.cap = None
         self.is_connected = False
-        self.connection_lock = Lock()
+        self.connection_lock = threading.Lock()
         self.logger = logging.getLogger(__name__)
         self.last_error = None
+
         self._frame_count = 0
         self._consecutive_failures = 0
+        self._reconnecting = False
+        self._last_reconnect_log_time = 0
+        self._reconnect_log_interval = 10  # segundos
 
-        # Tentar inicializar a câmera
-        self._initialize_camera()
+        self._initialize_camera_async()
 
     def _initialize_camera(self):
-        with self.connection_lock:
-            for attempt in range(self.max_retries):
-                try:
-                    self.logger.info(f"Tentativa {attempt + 1}/{self.max_retries} de conexão com a câmera: {self.rtsp_url}")
+        self.logger.info("Iniciando conexão com a câmera...")
+        attempts = 0
+        max_attempts = 5
+        while attempts < max_attempts:
+            try:
+                self.logger.info(f"Tentativa {attempts + 1} de {max_attempts} para abrir a câmera.")
 
+                # Libera a câmera anterior se existir
+                with self.connection_lock:
                     if self.cap is not None:
-                        self.cap.release()
-
-                    self.cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
-
-                    self.cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, self.connection_timeout * 1000)
-                    self.cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
-                    self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
-                    self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
-                    self.cap.set(cv2.CAP_PROP_BUFFERSIZE, self.buffer_size)
-
-                    ret, test_frame = self.cap.read()
-                    if not ret or test_frame is None:
-                        raise ConnectionError("Falha ao capturar frame de teste")
-
-                    self.is_connected = True
-                    self.last_error = None
-                    self.logger.info("Conexão com a câmera estabelecida com sucesso")
-                    return True
-                except Exception as e:
-                    self.last_error = str(e)
-                    self.is_connected = False
-                    self.logger.error(f"Erro na tentativa {attempt + 1}: {e}")
-
-                    if self.cap is not None:
+                        self.logger.info("Liberando conexão anterior da câmera...")
                         self.cap.release()
                         self.cap = None
 
-                    if attempt < self.max_retries - 1:
-                        self.logger.info(f"Aguardando {self.retry_delay} segundos antes da próxima tentativa...")
-                        time.sleep(self.retry_delay)
+                cap = cv2.VideoCapture(self.rtsp_url)
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, self.buffer_size)
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.camera_width)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.camera_height)
 
-            self.logger.error(f"Falha ao conectar com a câmera após {self.max_retries} tentativas")
+                # Aguarda um pouco para a câmera estabilizar
+                time.sleep(2)
+
+                if cap.isOpened():
+                    self.logger.info("Conexão com a câmera estabelecida com sucesso.")
+                    with self.connection_lock:
+                        self.cap = cap
+                        self.is_connected = True
+                    return
+                else:
+                    self.logger.warning(f"Falha ao abrir a câmera. Tentativa {attempts + 1} de {max_attempts}.")
+                    cap.release()
+            except Exception as e:
+                self.logger.error(f"Erro ao conectar com a câmera: {e}")
+
+            attempts += 1
+            time.sleep(3)
+
+        self.logger.error("Não foi possível conectar à câmera após várias tentativas.")
+        with self.connection_lock:
+            self.is_connected = False
+
+    def _initialize_camera_async(self):
+        def target():
+            self._reconnecting = True
+            try:
+                self._initialize_camera()
+            finally:
+                self._reconnecting = False
+
+        if not self._reconnecting:
+            threading.Thread(target=target, daemon=True).start()
+        else:
+            now = time.time()
+            if now - self._last_reconnect_log_time > self._reconnect_log_interval:
+                self.logger.info("Reconexão já em andamento, ignorando nova solicitação.")
+                self._last_reconnect_log_time = now
+
+    def _is_frame_valid(self, frame):
+        if frame is None:
+            self.logger.debug("Frame é None.")
             return False
 
+        if frame.shape[0] != self.camera_height or frame.shape[1] != self.camera_width:
+            self.logger.debug(f"Tamanho do frame diferente do esperado. Esperado ({self.camera_height}, {self.camera_width}), obtido {frame.shape[:2]}")
+            return False
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        variance = np.var(gray)
+        if variance < self.config.FRAME_VARIANCE_THRESHOLD:
+            self.logger.debug(f"Variância do frame muito baixa: {variance}")
+            return False
+
+        return True
+
     def get_frame(self):
-        if not self.is_connected or self.cap is None:
-            self.logger.warning("Câmera não conectada. Tentando reconectar...")
-            if not self._initialize_camera():
+        with self.connection_lock:
+            if not self.is_connected or self.cap is None:
+                now = time.time()
+                if now - self._last_reconnect_log_time > self._reconnect_log_interval:
+                    self.logger.warning("Câmera não conectada. Tentando reconectar...")
+                    self._last_reconnect_log_time = now
+                self._initialize_camera_async()
                 return None
 
-        max_consecutive_failures = 5
-
-        self._frame_count += 1
-        if self.config.ENABLE_CAMERA_RESET and self._frame_count >= self.config.CAMERA_RESET_FRAME_COUNT:
-            self.logger.info("Reinicializando conexão da câmera para limpar buffer interno")
-            self._initialize_camera()
-            self._frame_count = 0
-
-        try:
             ret, frame = self.cap.read()
 
-            if not ret or frame is None or frame.size == 0:
-                self.logger.warning("Falha ao capturar frame válido. Verificando conexão...")
-                self.is_connected = False
+            if not ret or frame is None or not self._is_frame_valid(frame):
                 self._consecutive_failures += 1
-
-                if self._consecutive_failures >= max_consecutive_failures:
-                    self.logger.info("Muitas falhas consecutivas. Tentando reconectar a câmera...")
-                    if not self._initialize_camera():
-                        return None
+                self.logger.warning(f"Falha ao capturar frame válido. Falhas consecutivas: {self._consecutive_failures}")
+                if self._consecutive_failures >= 5:
+                    self.logger.warning("Muitas falhas consecutivas na captura de frames. Reconectando a câmera...")
                     self._consecutive_failures = 0
-                else:
-                    if self._initialize_camera():
-                        ret, frame = self.cap.read()
-                        if ret and frame is not None and frame.size > 0:
-                            self._consecutive_failures = 0
-                            return frame
-                        else:
-                            return None
-                    else:
-                        return None
+                    self._initialize_camera_async()
+                return None
 
             self._consecutive_failures = 0
+
+            self._frame_count += 1
+            if self.config.ENABLE_CAMERA_RESET and self._frame_count >= self.config.CAMERA_RESET_FRAME_COUNT:
+                self.logger.info("Reiniciando conexão da câmera após atingir limite de frames.")
+                self._frame_count = 0
+                self.logger.info("Forçando reconexão com a câmera...")
+                self._initialize_camera_async()
+
             return frame
 
-        except Exception as e:
-            self.logger.error(f"Erro ao capturar frame: {e}")
-            self.is_connected = False
-            self.last_error = str(e)
-            return None
-
     def is_camera_connected(self):
-        return self.is_connected and self.cap is not None and self.cap.isOpened()
+        with self.connection_lock:
+            return self.is_connected
 
     def get_connection_status(self):
-        return {
-            'connected': self.is_connected,
-            'camera_opened': self.cap is not None and self.cap.isOpened() if self.cap else False,
-            'last_error': self.last_error,
-            'rtsp_url': self.rtsp_url
-        }
+        with self.connection_lock:
+            return {
+                "is_connected": self.is_connected,
+                "last_error": self.last_error
+            }
 
     def reconnect(self):
         self.logger.info("Forçando reconexão com a câmera...")
-        self.is_connected = False
-        return self._initialize_camera()
+        self._initialize_camera_async()
 
     def release(self):
-        if self.cap is not None:
-            try:
+        with self.connection_lock:
+            if self.cap is not None:
                 self.cap.release()
-            except Exception as e:
-                self.logger.error(f"Erro ao liberar câmera: {e}")
-            finally:
                 self.cap = None
-        self.is_connected = False
+            self.is_connected = False
 
     def __del__(self):
-        try:
-            if hasattr(self, 'connection_lock') and self.connection_lock:
-                with self.connection_lock:
-                    self.release()
-            else:
-                self.release()
-        except Exception:
-            pass
+        self.release()
+

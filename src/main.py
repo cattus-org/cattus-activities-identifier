@@ -1,102 +1,73 @@
-import sys
-import os
-# Adiciona o diretório raiz do projeto ao path para permitir importações
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from config.config import Config
-from src.core.marker_detector import MarkerDetector
-from src.tracking.activity_tracker import ActivityTracker
-from src.managers.camera_manager import CameraManager
-from src.managers.display_manager import DisplayManager
-from src.api.api_client import APIClient
-from src.tracking.activity_notifier import ActivityNotifier
 import logging
+import time
+from .managers.camera_manager import CameraManager
+from .core.marker_detector import MarkerDetector
+from .tracking.activity_tracker import ActivityTracker
+from .managers.display_manager import DisplayManager
+from .api.api_client import APIClient
+from .tracking.activity_notifier import ActivityNotifier
 
-def setup_logging():
-    """Configura o sistema de logging"""
-    # Verifica se o logging já foi configurado para evitar duplicação
-    root_logger = logging.getLogger()
-    if root_logger.handlers:
-        return
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler('cattus_activities.log'),
-            logging.StreamHandler()
-        ]
-    )
+# Configuração básica do logging para garantir que os logs apareçam
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+logger = logging.getLogger(__name__)
+
 
 def main():
-    """Função principal do programa"""
-    # Configura logging
-    setup_logging()
-    logger = logging.getLogger(__name__)
+    logger.info("Iniciando sistema...")
 
-    # Inicializa componentes
-    config = Config()
+    config = None
+    try:
+        from config.config import Config
+        config = Config()
+    except Exception as e:
+        logger.error(f"Erro ao carregar configuração: {e}")
+        return
+
     camera_manager = CameraManager(config)
     marker_detector = MarkerDetector(config)
     activity_tracker = ActivityTracker(config)
     display_manager = DisplayManager(config)
-
-    # Resetar cache do pote no início
-    marker_detector.reset_bowl_cache()
-
-    # Inicializa cliente da API e notificador
     api_client = APIClient(config.API_BASE_URL, config.API_KEY, config.API_TIMEOUT)
-    activity_notifier = ActivityNotifier(
-        api_client,
-        config.ACTIVITY_TYPE_MAPPING,
-        config.API_ENABLED
-    )
+    activity_notifier = ActivityNotifier(api_client, config)
 
-    # Conecta o notificador ao activity_tracker
     activity_tracker.set_activity_notifier(activity_notifier)
 
-    # Configura a janela de exibição
-    display_manager.setup_window()
-
-    logger.info("Sistema iniciado com sucesso")
-
     try:
+        logger.info("Sistema iniciado com sucesso")
+
         while True:
-            # Captura frame da câmera
             frame = camera_manager.get_frame()
             if frame is None:
-                break
+                time.sleep(0.1)
+                continue
 
-            # Detecta marcadores ArUco
-            posicoes = marker_detector.detect_markers(frame)
+            markers = marker_detector.detect_markers(frame)
+            activity_tracker.update(markers)
+            activity_tracker.cleanup_inactive_cats(list(markers.keys()))
 
-            # Atualiza rastreamento de atividades
-            activity_tracker.update(posicoes)
+            display_manager.draw_info(frame, markers, activity_tracker.estado, marker_detector)
+            display_manager.setup_window()
 
-            # Remove gatos inativos do rastreamento
-            active_cats = [identificador for identificador, dados in posicoes.items() if dados["tipo"] == "gato"]
-            activity_tracker.cleanup_inactive_cats(active_cats)
-
-            # Desenha informações na tela, passando marker_detector para exibir cache
-            display_manager.draw_info(frame, posicoes, activity_tracker.get_estado(), marker_detector=marker_detector)
-
-            # Exibe frame e verifica se deve sair
             if display_manager.show_frame(frame):
                 break
 
+            time.sleep(0.01)
+
     except KeyboardInterrupt:
-        logger.info("Interrompido pelo usuário")
+        logger.info("Interrupção pelo usuário. Finalizando sistema...")
     except Exception as e:
-        logger.error(f"Erro inesperado: {str(e)}")
+        logger.error(f"Erro inesperado: {e}")
     finally:
-        logger.info("Finalizando sistema...")
-
-        # Finaliza todas as atividades ativas antes de sair
-        if 'activity_notifier' in locals():
-            activity_notifier.cleanup_all_activities()
-
         camera_manager.release()
         display_manager.cleanup()
+        activity_notifier.cleanup_all_activities()
+        logger.info("Sistema finalizado")
+
 
 if __name__ == "__main__":
     main()

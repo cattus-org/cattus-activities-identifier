@@ -41,7 +41,7 @@ class Config:
         self.CAMERA_RESET_FRAME_COUNT = 300
 
         # Flag para habilitar/desabilitar o reset da conexão da câmera após certo número de frames
-        self.ENABLE_CAMERA_RESET = True
+        self.ENABLE_CAMERA_RESET = False
         
         # ID do pote de ração (será excluído da detecção automática)
         self.POTE_RACAO_ID = 0
@@ -70,8 +70,10 @@ class Config:
         self.WINDOW_SIZE = 8
 
         # Tempo em segundos para manter memória de gato inativo
-        self.CAT_INACTIVITY_TIMEOUT = 5
+        self.CAT_INACTIVITY_TIMEOUT = 3
         self.MIN_ACTIVITY_DURATION_TO_REGISTER = 5  # Duração mínima da atividade para registrar no banco
+
+        self.FRAME_VARIANCE_THRESHOLD = 3
 
         # Matriz da câmera e coeficientes de distorção
         self.camera_matrix = np.array([
