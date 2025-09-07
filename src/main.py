@@ -57,6 +57,11 @@ def main():
             activity_tracker.update(markers)
             activity_tracker.cleanup_inactive_cats(list(markers.keys()))
 
+            # Limpa gatos inativos do detector também
+            cleaned_count = marker_detector.cleanup_inactive_cats()
+            if cleaned_count > 0:
+                logger.debug(f"Limpados {cleaned_count} gatos inativos do detector")
+
             display_manager.draw_info(frame, markers, activity_tracker.estado, marker_detector)
 
             if display_manager.show_frame(frame):

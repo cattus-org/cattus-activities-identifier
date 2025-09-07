@@ -15,6 +15,8 @@ class MarkerDetector:
 
         # Cache para armazenar gatos detectados dinamicamente
         self.detected_cats = {}
+        # Registro do tempo da última detecção de cada gato
+        self.cat_last_seen = {}
 
         # Cache de posição do pote de ração
         self.bowl_position_cache = {
@@ -49,12 +51,17 @@ class MarkerDetector:
             return self.config.POTE_RACAO
         else:
             # Todos os outros IDs são considerados gatos
+            current_time = time.time()
+
             if marker_id not in self.detected_cats:
                 self.detected_cats[marker_id] = {
                     "tipo": "gato",
                     "size": self.config.DEFAULT_MARKER_SIZE
                 }
                 print(f"[INFO] Novo gato detectado: ID {marker_id}")
+
+            # Atualiza o tempo da última detecção
+            self.cat_last_seen[marker_id] = current_time
 
             return self.detected_cats[marker_id]
 
@@ -64,6 +71,15 @@ class MarkerDetector:
 
         # Incrementa contador de detecções
         self.bowl_position_cache["detection_count"] += 1
+
+        # Para evitar overflow e impacto no desempenho, resetamos o contador
+        # quando ele atinge um valor muito alto, mas mantemos o status de confiável
+        MAX_DETECTION_COUNT = 100000  # 100 mil detecções é mais do que suficiente
+        if self.bowl_position_cache["detection_count"] >= MAX_DETECTION_COUNT:
+            # Resetamos o contador mas mantemos o status de confiável
+            self.bowl_position_cache["detection_count"] = MAX_DETECTION_COUNT // 2
+            self.logger.debug(f"Contador de detecções resetado para evitar overflow: {self.bowl_position_cache['detection_count']}")
+
         self.bowl_position_cache["last_detected"] = current_time
 
         # Verifica se deve atualizar a posição em cache
@@ -230,6 +246,32 @@ class MarkerDetector:
         """Retorna lista de gatos detectados dinamicamente"""
         return self.detected_cats.copy()
 
+    def cleanup_inactive_cats(self):
+        """Remove gatos que não são mais detectados há muito tempo"""
+        if not hasattr(self.config, 'CAT_INACTIVITY_TIMEOUT'):
+            # Se não houver configuração de timeout, usa um valor padrão
+            CAT_INACTIVITY_TIMEOUT = 300  # 5 minutos
+        else:
+            CAT_INACTIVITY_TIMEOUT = self.config.CAT_INACTIVITY_TIMEOUT
+
+        current_time = time.time()
+        inactive_cats = []
+
+        # Identifica gatos inativos
+        for cat_id, last_seen_time in self.cat_last_seen.items():
+            if current_time - last_seen_time > CAT_INACTIVITY_TIMEOUT:
+                inactive_cats.append(cat_id)
+
+        # Remove gatos inativos
+        for cat_id in inactive_cats:
+            if cat_id in self.detected_cats:
+                del self.detected_cats[cat_id]
+            if cat_id in self.cat_last_seen:
+                del self.cat_last_seen[cat_id]
+            self.logger.debug(f"Removido gato ID {cat_id} do cache (não detectado há mais de {CAT_INACTIVITY_TIMEOUT}s)")
+
+        return len(inactive_cats)
+
     def reset_bowl_cache(self):
         """Reseta o cache de posição do pote"""
         self.bowl_position_cache = {
@@ -240,7 +282,3 @@ class MarkerDetector:
             "is_reliable": False
         }
         self.logger.info("Cache de posição do pote resetado")
-    
-    def get_detected_cats(self):
-        """Retorna lista de gatos detectados dinamicamente"""
-        return self.detected_cats.copy()
