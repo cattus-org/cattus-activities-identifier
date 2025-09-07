@@ -25,16 +25,23 @@ def main():
         logger.error(f"Erro ao carregar configuração: {e}")
         return
 
-    camera_manager = CameraManager(config)
-    marker_detector = MarkerDetector(config)
-    activity_tracker = ActivityTracker(config)
-    display_manager = DisplayManager(config)
-    api_client = APIClient(config.API_BASE_URL, config.API_KEY, config.API_TIMEOUT)
-    activity_notifier = ActivityNotifier(api_client, config.ACTIVITY_TYPE_MAPPING, config.API_ENABLED)
-
-    activity_tracker.set_activity_notifier(activity_notifier)
+    camera_manager = None
+    marker_detector = None
+    activity_tracker = None
+    display_manager = None
+    api_client = None
+    activity_notifier = None
 
     try:
+        camera_manager = CameraManager(config)
+        marker_detector = MarkerDetector(config)
+        activity_tracker = ActivityTracker(config)
+        display_manager = DisplayManager(config)
+        api_client = APIClient(config.API_BASE_URL, config.API_KEY, config.API_TIMEOUT)
+        activity_notifier = ActivityNotifier(api_client, config.ACTIVITY_TYPE_MAPPING, config.API_ENABLED)
+
+        activity_tracker.set_activity_notifier(activity_notifier)
+
         logger.info("Sistema iniciado com sucesso")
         display_manager.setup_window()
 
@@ -52,16 +59,40 @@ def main():
 
             display_manager.draw_info(frame, markers, activity_tracker.estado, marker_detector)
 
-            display_manager.show_frame(frame)
+            if display_manager.show_frame(frame):
+                break
 
     except KeyboardInterrupt:
         logger.info("Interrupção pelo usuário. Finalizando sistema...")
     except Exception as e:
         logger.error(f"Erro inesperado: {e}")
     finally:
-        camera_manager.release()
-        display_manager.cleanup()
-        activity_notifier.cleanup_all_activities()
+        logger.info("Iniciando processo de finalização do sistema...")
+
+        # Finaliza todas as atividades ativas
+        if activity_notifier:
+            try:
+                activity_notifier.cleanup_all_activities()
+                logger.info("Atividades ativas finalizadas com sucesso")
+            except Exception as e:
+                logger.error(f"Erro ao finalizar atividades ativas: {e}")
+
+        # Libera recursos da câmera
+        if camera_manager:
+            try:
+                camera_manager.release()
+                logger.info("Recursos da câmera liberados com sucesso")
+            except Exception as e:
+                logger.error(f"Erro ao liberar recursos da câmera: {e}")
+
+        # Limpa interface
+        if display_manager:
+            try:
+                display_manager.cleanup()
+                logger.info("Interface limpa com sucesso")
+            except Exception as e:
+                logger.error(f"Erro ao limpar interface: {e}")
+
         logger.info("Sistema finalizado")
 
 

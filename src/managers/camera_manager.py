@@ -145,18 +145,6 @@ class CameraManager:
             self.capture_thread.join(timeout=5)
             if self.capture_thread.is_alive():
                 self.logger.warning("Capture thread did not stop after join timeout.")
-        with self.connection_lock:
-            if self.cap is not None:
-                self.cap.release()
-                self.cap = None
-            self.is_connected = False
-    def release(self):
-        self.logger.info("Releasing camera manager resources.")
-        self.running = False
-        if self.capture_thread is not None:
-            self.capture_thread.join(timeout=5)
-            if self.capture_thread.is_alive():
-                self.logger.warning("Capture thread did not stop after join timeout.")
 
         with self.connection_lock:
             if self.cap is not None:

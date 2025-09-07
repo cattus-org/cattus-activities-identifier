@@ -78,46 +78,50 @@ class ActivityNotifier:
             self.logger.error(f"Falha ao criar atividade: Cat ID {cat_id} - {activity_title}")
             return False
     
-    def notify_activity_end(self, cat_id: int, activity_type: str, 
-                           start_time: datetime, end_time: datetime = None) -> bool:
+    def notify_activity_end(self, cat_id: int, activity_type: str,
+                           start_time: datetime = None, end_time: datetime = None) -> bool:
         """
         Notifica o fim de uma atividade
-        
+
         Args:
             cat_id: ID do gato
             activity_type: Tipo de atividade
             start_time: Timestamp do início da atividade (não usado, mantido para compatibilidade)
             end_time: Timestamp do fim (padrão: agora)
-            
+
         Returns:
             bool: True se a notificação foi enviada com sucesso
         """
         if not self.enabled:
             self.logger.debug(f"Notificações desabilitadas - ignorando fim de atividade: {cat_id} - {activity_type}")
             return True
-        
+
         # Converte tipo de atividade se houver mapeamento
         activity_title = self.activity_mapping.get(activity_type, activity_type)
-        
+
         # Busca a atividade ativa com lock
         activity_key = (cat_id, activity_type)
         activity_id = None
-        
+
         with self._lock:
             activity_id = self.active_activities.get(activity_key)
-        
+
         if not activity_id:
             self.logger.warning(f"Nenhuma atividade ativa encontrada para finalizar: Cat ID {cat_id} - {activity_title}")
             return False
-        
+
         if end_time is None:
             end_time = datetime.now()
-        
+
         self.logger.info(f"Finalizando atividade: Cat ID {cat_id} - {activity_title} (Activity ID: {activity_id})")
-        
+
         # Finaliza a atividade na API
-        success = self.api_client.finish_activity(activity_id, end_time)
-        
+        try:
+            success = self.api_client.finish_activity(activity_id, end_time)
+        except Exception as e:
+            self.logger.error(f"Erro ao finalizar atividade na API: {e}")
+            success = False
+
         if success:
             # Remove a atividade da lista de ativas com lock
             with self._lock:
@@ -127,6 +131,10 @@ class ActivityNotifier:
             return True
         else:
             self.logger.error(f"Falha ao finalizar atividade: Cat ID {cat_id} - {activity_title}")
+            # Mesmo com falha na API, remove a atividade localmente para evitar acumulo
+            with self._lock:
+                if activity_key in self.active_activities:
+                    del self.active_activities[activity_key]
             return False
     
     def get_active_activities(self) -> Dict[tuple, int]:
@@ -142,75 +150,96 @@ class ActivityNotifier:
     def force_end_activity(self, cat_id: int, activity_type: str, end_time: datetime = None) -> bool:
         """
         Força o fim de uma atividade específica
-        
+
         Args:
             cat_id: ID do gato
             activity_type: Tipo de atividade
             end_time: Timestamp do fim (padrão: agora)
-            
+
         Returns:
             bool: True se a atividade foi finalizada
         """
         activity_key = (cat_id, activity_type)
         activity_id = None
-        
+
         with self._lock:
             activity_id = self.active_activities.get(activity_key)
-        
+
         if not activity_id:
             return False
-        
+
         if end_time is None:
             end_time = datetime.now()
-        
-        success = self.api_client.finish_activity(activity_id, end_time)
-        
+
+        # Tenta finalizar com tratamento para evitar travamentos
+        success = False
+        try:
+            success = self.api_client.finish_activity(activity_id, end_time)
+        except Exception as e:
+            self.logger.error(f"Erro ao finalizar atividade na API: {e}")
+
         if success:
             with self._lock:
                 if activity_key in self.active_activities:
                     del self.active_activities[activity_key]
             self.logger.info(f"Atividade forçadamente finalizada: Cat ID {cat_id} - {activity_type}")
-        
+        else:
+            # Mesmo com falha, remove localmente
+            with self._lock:
+                if activity_key in self.active_activities:
+                    del self.active_activities[activity_key]
+            self.logger.warning(f"Atividade removida localmente devido a falha na API: Cat ID {cat_id} - {activity_type}")
+
         return success
     
     def cleanup_all_activities(self, end_time: datetime = None) -> int:
         """
         Finaliza todas as atividades ativas (útil para limpeza no shutdown)
-        
+
         Args:
             end_time: Timestamp do fim (padrão: agora)
-            
+
         Returns:
             int: Número de atividades finalizadas
         """
         with self._lock:
             if not self.active_activities:
                 return 0
-        
+
         if end_time is None:
             end_time = datetime.now()
-        
+
         finalized_count = 0
         activities_to_remove = []
-        
+
         # Copia as atividades ativas para evitar manter o lock durante as requisições
         with self._lock:
             active_activities_copy = self.active_activities.copy()
-        
+
         for activity_key, activity_id in active_activities_copy.items():
             cat_id, activity_type = activity_key
-            
-            if self.api_client.finish_activity(activity_id, end_time):
+
+            # Tenta finalizar com tratamento para evitar travamentos
+            try:
+                if self.api_client.finish_activity(activity_id, end_time):
+                    activities_to_remove.append(activity_key)
+                    finalized_count += 1
+                    self.logger.info(f"Atividade finalizada na limpeza: Cat ID {cat_id} - {activity_type}")
+                else:
+                    # Mesmo com falha, marca para remover localmente
+                    activities_to_remove.append(activity_key)
+                    self.logger.warning(f"Atividade marcada para remoção local devido a falha na API: Cat ID {cat_id} - {activity_type}")
+            except Exception as e:
+                # Em caso de exceção, ainda marca para remover localmente
                 activities_to_remove.append(activity_key)
-                finalized_count += 1
-                self.logger.info(f"Atividade finalizada na limpeza: Cat ID {cat_id} - {activity_type}")
-        
+                self.logger.error(f"Erro ao finalizar atividade na API (removendo localmente): Cat ID {cat_id} - {activity_type} - {e}")
+
         # Remove as atividades finalizadas
         with self._lock:
             for activity_key in activities_to_remove:
                 if activity_key in self.active_activities:
                     del self.active_activities[activity_key]
-        
+
         self.logger.info(f"Limpeza concluída: {finalized_count} atividades finalizadas")
         return finalized_count
     

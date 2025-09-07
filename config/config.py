@@ -36,7 +36,7 @@ class Config:
         self.CAMERA_WIDTH = 1920
         self.CAMERA_HEIGHT = 1080
         self.CAMERA_BUFFER_SIZE = 1
-        self.CAMERA_MAX_DISCARD_FRAMES = 5  # Maximum number of frames to discard in capture loop
+        self.CAMERA_MAX_DISCARD_FRAMES = 3  # Maximum number of frames to discard in capture loop
 
         # Quantidade de frames capturados para resetar a conexão da câmera
         self.CAMERA_RESET_FRAME_COUNT = 300
@@ -71,7 +71,7 @@ class Config:
         self.WINDOW_SIZE = 8
 
         # Tempo em segundos para manter memória de gato inativo
-        self.CAT_INACTIVITY_TIMEOUT = 3
+        self.CAT_INACTIVITY_TIMEOUT = 5
         self.MIN_ACTIVITY_DURATION_TO_REGISTER = 5  # Duração mínima da atividade para registrar no banco
 
         self.FRAME_VARIANCE_THRESHOLD = 5

@@ -189,9 +189,19 @@ class APIClient:
     def test_connection(self) -> bool:
         """
         Testa a conexão com a API
-        
+
         Returns:
             bool: True se a conexão está funcionando
         """
-        response = self.session.get(f"{self.base_url}/", timeout=5)
-        return response.status_code in [200, 404, 401]  # 404 também indica que a API está respondendo
+        try:
+            response = self.session.get(f"{self.base_url}/", timeout=5)
+            return response.status_code in [200, 404, 401]  # 404 também indica que a API está respondendo
+        except requests.exceptions.Timeout:
+            self.logger.error(f"Timeout ao testar conexão com API: {self.base_url}")
+            return False
+        except requests.exceptions.ConnectionError:
+            self.logger.error(f"Erro de conexão ao testar API: {self.base_url}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Erro ao testar conexão com API: {e}")
+            return False

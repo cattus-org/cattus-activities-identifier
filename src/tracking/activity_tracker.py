@@ -137,7 +137,12 @@ class ActivityTracker:
                             # Finaliza e registra a atividade
                             start_datetime = datetime.fromtimestamp(cat_data["start_time"])
                             if hasattr(self, 'activity_notifier'):
-                                self.activity_notifier.notify_activity_end(cat_id, "eating", start_datetime)
+                                # Usa thread separada com timeout para evitar travamentos
+                                threading.Thread(
+                                    target=self._notify_activity_end_with_timeout,
+                                    args=(cat_id, "eating", start_datetime),
+                                    daemon=True
+                                ).start()
                         else:
                             # Atividade muito curta, descarta sem registrar
                             self.logger.info(f"Atividade de gato ID {cat_id} descartada por ser menor que {self.config.MIN_ACTIVITY_DURATION_TO_REGISTER} segundos")
@@ -164,7 +169,19 @@ class ActivityTracker:
         """Chamado quando uma atividade termina"""
         if hasattr(self, 'activity_notifier'):
             # Executa a notificação em uma thread separada para não bloquear o fluxo principal
-            threading.Thread(target=self.activity_notifier.notify_activity_end, args=(cat_id, activity_type, start_time), daemon=True).start()
+            threading.Thread(
+                target=self._notify_activity_end_with_timeout,
+                args=(cat_id, activity_type, start_time),
+                daemon=True
+            ).start()
+
+    def _notify_activity_end_with_timeout(self, cat_id: int, activity_type: str, start_time: datetime):
+        """Notifica o fim da atividade com timeout para evitar travamentos"""
+        try:
+            if hasattr(self, 'activity_notifier'):
+                self.activity_notifier.notify_activity_end(cat_id, activity_type, start_time)
+        except Exception as e:
+            self.logger.error(f"Erro ao notificar fim da atividade: {e}")
 
     def remove_cat(self, cat_id: int):
         """Remove explicitamente um gato do rastreamento e do last_seen"""
