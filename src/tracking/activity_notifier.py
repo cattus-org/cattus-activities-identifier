@@ -1,6 +1,7 @@
-from datetime import datetime
-from typing import Dict
 import logging
+import threading
+from typing import Dict
+from datetime import datetime
 from ..api.api_client import APIClient
 
 class ActivityNotifier:
@@ -23,6 +24,9 @@ class ActivityNotifier:
         # Dicionário para armazenar IDs das atividades ativas
         # Formato: {(cat_id, activity_type): activity_id}
         self.active_activities: Dict[tuple, int] = {}
+        
+        # Lock para sincronização de acesso ao dicionário de atividades
+        self._lock = threading.Lock()
         
         # Testa conexão com a API se habilitada
         if self.enabled:
@@ -52,9 +56,12 @@ class ActivityNotifier:
         
         # Verifica se já existe uma atividade ativa para este gato e tipo
         activity_key = (cat_id, activity_type)
-        if activity_key in self.active_activities:
-            self.logger.warning(f"Atividade já ativa para Cat ID {cat_id} - {activity_title}")
-            return True
+        
+        # Usa lock para sincronização de acesso ao dicionário
+        with self._lock:
+            if activity_key in self.active_activities:
+                self.logger.warning(f"Atividade já ativa para Cat ID {cat_id} - {activity_title}")
+                return True
         
         self.logger.info(f"Criando nova atividade: Cat ID {cat_id} - {activity_title}")
         
@@ -62,8 +69,9 @@ class ActivityNotifier:
         activity_id = self.api_client.create_activity(cat_id, activity_title, timestamp)
         
         if activity_id:
-            # Armazena o ID da atividade
-            self.active_activities[activity_key] = activity_id
+            # Armazena o ID da atividade com lock
+            with self._lock:
+                self.active_activities[activity_key] = activity_id
             self.logger.info(f"Atividade criada com sucesso: Cat ID {cat_id} - {activity_title} (Activity ID: {activity_id})")
             return True
         else:
@@ -91,9 +99,12 @@ class ActivityNotifier:
         # Converte tipo de atividade se houver mapeamento
         activity_title = self.activity_mapping.get(activity_type, activity_type)
         
-        # Busca a atividade ativa
+        # Busca a atividade ativa com lock
         activity_key = (cat_id, activity_type)
-        activity_id = self.active_activities.get(activity_key)
+        activity_id = None
+        
+        with self._lock:
+            activity_id = self.active_activities.get(activity_key)
         
         if not activity_id:
             self.logger.warning(f"Nenhuma atividade ativa encontrada para finalizar: Cat ID {cat_id} - {activity_title}")
@@ -108,8 +119,10 @@ class ActivityNotifier:
         success = self.api_client.finish_activity(activity_id, end_time)
         
         if success:
-            # Remove a atividade da lista de ativas
-            del self.active_activities[activity_key]
+            # Remove a atividade da lista de ativas com lock
+            with self._lock:
+                if activity_key in self.active_activities:
+                    del self.active_activities[activity_key]
             self.logger.info(f"Atividade finalizada com sucesso: Cat ID {cat_id} - {activity_title}")
             return True
         else:
@@ -123,7 +136,8 @@ class ActivityNotifier:
         Returns:
             Dict: Dicionário com as atividades ativas
         """
-        return self.active_activities.copy()
+        with self._lock:
+            return self.active_activities.copy()
     
     def force_end_activity(self, cat_id: int, activity_type: str, end_time: datetime = None) -> bool:
         """
@@ -138,7 +152,10 @@ class ActivityNotifier:
             bool: True se a atividade foi finalizada
         """
         activity_key = (cat_id, activity_type)
-        activity_id = self.active_activities.get(activity_key)
+        activity_id = None
+        
+        with self._lock:
+            activity_id = self.active_activities.get(activity_key)
         
         if not activity_id:
             return False
@@ -149,7 +166,9 @@ class ActivityNotifier:
         success = self.api_client.finish_activity(activity_id, end_time)
         
         if success:
-            del self.active_activities[activity_key]
+            with self._lock:
+                if activity_key in self.active_activities:
+                    del self.active_activities[activity_key]
             self.logger.info(f"Atividade forçadamente finalizada: Cat ID {cat_id} - {activity_type}")
         
         return success
@@ -164,8 +183,9 @@ class ActivityNotifier:
         Returns:
             int: Número de atividades finalizadas
         """
-        if not self.active_activities:
-            return 0
+        with self._lock:
+            if not self.active_activities:
+                return 0
         
         if end_time is None:
             end_time = datetime.now()
@@ -173,7 +193,11 @@ class ActivityNotifier:
         finalized_count = 0
         activities_to_remove = []
         
-        for activity_key, activity_id in self.active_activities.items():
+        # Copia as atividades ativas para evitar manter o lock durante as requisições
+        with self._lock:
+            active_activities_copy = self.active_activities.copy()
+        
+        for activity_key, activity_id in active_activities_copy.items():
             cat_id, activity_type = activity_key
             
             if self.api_client.finish_activity(activity_id, end_time):
@@ -182,8 +206,10 @@ class ActivityNotifier:
                 self.logger.info(f"Atividade finalizada na limpeza: Cat ID {cat_id} - {activity_type}")
         
         # Remove as atividades finalizadas
-        for activity_key in activities_to_remove:
-            del self.active_activities[activity_key]
+        with self._lock:
+            for activity_key in activities_to_remove:
+                if activity_key in self.active_activities:
+                    del self.active_activities[activity_key]
         
         self.logger.info(f"Limpeza concluída: {finalized_count} atividades finalizadas")
         return finalized_count

@@ -30,7 +30,7 @@ def main():
     activity_tracker = ActivityTracker(config)
     display_manager = DisplayManager(config)
     api_client = APIClient(config.API_BASE_URL, config.API_KEY, config.API_TIMEOUT)
-    activity_notifier = ActivityNotifier(api_client, config)
+    activity_notifier = ActivityNotifier(api_client, config.ACTIVITY_TYPE_MAPPING, config.API_ENABLED)
 
     activity_tracker.set_activity_notifier(activity_notifier)
 
