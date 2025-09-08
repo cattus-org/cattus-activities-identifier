@@ -7,6 +7,34 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Não Lançado]
 
+### Adicionado
+- Sistema de cache para posição do pote de ração
+- Detecção dinâmica de novos gatos
+- Configuração de thresholds para detecção de atividade
+- Sistema de logging completo
+- Tratamento robusto de erros e reconexão automática
+- Interface visual com informações em tempo real
+- Integração com API externa para armazenamento de dados
+- Suporte a câmeras RTSP
+- Estimativa de pose 3D dos marcadores
+- Análise temporal com janela deslizante
+- Mapeamento configurável de tipos de atividade
+- Cleanup automático de gatos inativos
+
+### Melhorado
+- Otimização do algoritmo de detecção de atividade
+- Melhoria no gerenciamento de recursos da câmera
+- Aperfeiçoamento do sistema de notificações
+- Aprimoramento da detecção de marcadores ArUco
+- Otimização do processo de finalização do sistema
+
+### Corrigido
+- Problemas de vazamento de memória na câmera
+- Erros de reconexão com a API
+- Problemas de detecção em ambientes com pouca luz
+- Correções no cálculo de distâncias 3D
+- Ajustes na detecção de início/fim de atividades
+
 ### Planejado
 - Suporte a múltiplos potes simultaneamente
 - Interface web para monitoramento remoto
