@@ -6,6 +6,7 @@ from .tracking.activity_tracker import ActivityTracker
 from .managers.display_manager import DisplayManager
 from .api.api_client import APIClient
 from .tracking.activity_notifier import ActivityNotifier
+from .managers.streaming_manager import StreamingManager
 
 
 # Configuração básica do logging para garantir que os logs apareçam
@@ -31,6 +32,7 @@ def main():
     display_manager = None
     api_client = None
     activity_notifier = None
+    streaming_manager = None
 
     try:
         camera_manager = CameraManager(config)
@@ -39,11 +41,22 @@ def main():
         display_manager = DisplayManager(config)
         api_client = APIClient(config.API_BASE_URL, config.API_KEY, config.API_TIMEOUT)
         activity_notifier = ActivityNotifier(api_client, config.ACTIVITY_TYPE_MAPPING, config.API_ENABLED)
+        streaming_manager = StreamingManager(config)
+
+        # Inicia o servidor de streaming se estiver habilitado (captura erros localmente)
+        try:
+            if getattr(config, "STREAMING_ENABLED", False):
+                streaming_manager.start_server()
+        except Exception as e:
+            logger.error(f"Falha ao iniciar servidor de streaming: {e}")
 
         activity_tracker.set_activity_notifier(activity_notifier)
 
         logger.info("Sistema iniciado com sucesso")
-        display_manager.setup_window()
+
+        # Configura a janela de exibição apenas se estiver habilitada
+        if config.DISPLAY_ENABLED:
+            display_manager.setup_window()
 
         while True:
             frame = camera_manager.get_frame()
@@ -57,13 +70,16 @@ def main():
             activity_tracker.update(markers)
             activity_tracker.cleanup_inactive_cats(list(markers.keys()))
 
-            # Limpa gatos inativos do detector também
+            # Limpa gatos inativos do detector também (apenas uma vez por frame)
             cleaned_count = marker_detector.cleanup_inactive_cats()
             if cleaned_count > 0:
                 logger.debug(f"Limpados {cleaned_count} gatos inativos do detector")
 
+            # Desenha informações e atualiza o frame do streaming
             display_manager.draw_info(frame, markers, activity_tracker.estado, marker_detector)
+            streaming_manager.update_frame(frame)
 
+            # Exibe o frame; se a interface solicitar saída, encerra o loop
             if display_manager.show_frame(frame):
                 break
 

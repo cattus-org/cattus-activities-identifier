@@ -4,25 +4,43 @@ import numpy as np
 
 class DisplayManager:
     """Classe responsável pela exibição e interface visual"""
-    
+
     def __init__(self, config):
         self.config = config
-    
+        self.window_created = False
+
     def setup_window(self):
         """Configura a janela de exibição"""
+        # Verifica se a exibição está habilitada
+        if not self.config.DISPLAY_ENABLED:
+            return
+
         cv2.namedWindow(self.config.WINDOW_NAME, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(
-            self.config.WINDOW_NAME, 
-            self.config.WINDOW_WIDTH, 
+            self.config.WINDOW_NAME,
+            self.config.WINDOW_WIDTH,
             self.config.WINDOW_HEIGHT
         )
-    
+        self.window_created = True
+
     def draw_info(self, frame, posicoes, estado, marker_detector=None):
         """Desenha informações de distância e estado na tela"""
+        # Verifica se o desenho de informações está habilitado
+        if not self.config.DISPLAY_INFO_ENABLED:
+            return
+
         # Desenha informações dos marcadores detectados
         self._draw_marker_info(frame, posicoes)
 
         # Desenha distâncias
+        self._draw_distances(frame, posicoes, estado)
+
+        # Desenha estado de alimentação
+        self._draw_feeding_status(frame, estado)
+
+        # Desenha informações do cache do pote se disponível
+        if marker_detector is not None:
+            self._draw_bowl_cache_info(frame, marker_detector)
         self._draw_distances(frame, posicoes, estado)
 
         # Desenha estado de alimentação
@@ -158,7 +176,14 @@ class DisplayManager:
 
     def show_frame(self, frame):
         """Exibe o frame e verifica se deve sair"""
+        # Verifica se a exibição está habilitada
+        if not self.config.DISPLAY_ENABLED:
+            # Mesmo quando a janela não é mostrada, verificamos se deve sair (por exemplo, por timeout)
+            return cv2.waitKey(1) & 0xFF == ord('q')
+
+        # Mostra a janela e marca que ela foi criada
         cv2.imshow(self.config.WINDOW_NAME, frame)
+        self.window_created = True
         return cv2.waitKey(1) & 0xFF == ord('q')
 
     def cleanup(self):

@@ -13,9 +13,15 @@ class Config:
         self.API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:3000")  # Ajuste para sua URL
         self.API_KEY = os.getenv("API_KEY")  # Token de autenticação (fallback para valor padrão)
         self.API_TIMEOUT = 10  # Timeout em segundos
-        self.API_ENABLED = True  # Flag para habilitar/desabilitar envio para API
+        self.API_ENABLED = False  # Flag para habilitar/desabilitar envio para API
+
+        # Configurações do Streaming via FastAPI
+        self.STREAMING_ENABLED = True
+        self.STREAMING_PORT = 8000
+        self.STREAMING_HOST = "0.0.0.0"
 
         # Mapeamento de tipos de atividade (opcional)
+        self.DISPLAY_INFO_ENABLED = True
         self.ACTIVITY_TYPE_MAPPING = {
             "eating": "eat",
             "drinking": "drink",
@@ -23,12 +29,13 @@ class Config:
             "playing": "play",
             # Adicione mais mapeamentos conforme necessário
         }
-        
+
         # Configurações da janela de visualização
+        self.DISPLAY_ENABLED = False
         self.WINDOW_WIDTH = 960
         self.WINDOW_HEIGHT = 540
         self.WINDOW_NAME = "Deteccao Gato/Pote"
-        
+
         # URL da câmera RTSP
         self.RTSP_URL = "rtsp://admin:cattuscamera2025@192.168.1.72:554/onvif1"
         
@@ -43,17 +50,17 @@ class Config:
 
         # Flag para habilitar/desabilitar o reset da conexão da câmera após certo número de frames
         self.ENABLE_CAMERA_RESET = False
-        
+
         # ID do pote de ração (será excluído da detecção automática)
         self.POTE_RACAO_ID = 0
-        
+
         # Configuração do pote de ração
         self.POTE_RACAO = {
-            "tipo": "pote", 
-            "nome": "Pote Racao", 
+            "tipo": "pote",
+            "nome": "Pote Racao",
             "size": 0.02
         }
-        
+
         # Tamanho padrão para marcadores de gatos detectados automaticamente
         self.DEFAULT_MARKER_SIZE = 0.02
 
