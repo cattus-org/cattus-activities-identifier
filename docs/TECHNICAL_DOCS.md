@@ -439,6 +439,33 @@ MAX_RETRIES = 3           # Número máximo de tentativas (API e câmera)
 RETRY_DELAY = 2           # Delay entre tentativas (segundos)
 ```
 
+### Configurações de Interface e Streaming
+
+```python
+DISPLAY_ENABLED = True        # Habilita/desabilita a janela de exibição local
+DISPLAY_INFO_ENABLED = True  # Habilita/desabilita informações sobrepostas na interface
+STREAMING_ENABLED = True     # Habilita/desabilita o servidor de streaming via FastAPI
+STREAMING_PORT = 8000        # Porta para o servidor de streaming
+STREAMING_HOST = "0.0.0.0"   # Endereço IP para o servidor de streaming
+```
+
+#### Opções de Visualização
+
+- **DISPLAY_ENABLED**: Controla se a janela de interface gráfica será exibida localmente. Útil para ambientes headless ou quando apenas o streaming é necessário.
+- **DISPLAY_INFO_ENABLED**: Controla se informações sobrepostas (distâncias, identificadores, estados) serão desenhadas na interface e no streaming.
+- **STREAMING_ENABLED**: Ativa o servidor FastAPI para fornecer streaming via HTTP. Permite acesso remoto ao feed de vídeo.
+
+#### Combinações de Configuração
+
+| DISPLAY_ENABLED | DISPLAY_INFO_ENABLED | STREAMING_ENABLED | Resultado |
+|----------------|---------------------|-------------------|-----------|
+| True | True | True | Janela local + streaming com informações |
+| True | False | True | Janela local + streaming sem informações |
+| False | True | True | Apenas streaming com informações |
+| False | False | True | Apenas streaming sem informações |
+| True | True | False | Apenas janela local com informações |
+| False | True | False | Nenhuma interface visual |
+
 ## Logs e Monitoramento do Sistema
 
 ### Níveis e Categorias de Logs

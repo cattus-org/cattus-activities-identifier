@@ -78,6 +78,11 @@ API_BASE_URL=http://localhost:3000
 API_KEY=sua_chave_de_api_aqui
 ```
 
+#### Descrição das Variáveis de Streaming e Interface
+
+- **API_BASE_URL**: URL da API principal (onde é realizado o registro das atividades)
+- **API_KEY**: Chave de autenticação para acessar a API
+
 ### 6. Configuração do Sistema
 Edite o arquivo `config/config.py` para ajustar as configurações conforme sua necessidade:
 

@@ -20,6 +20,9 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - Análise temporal com janela deslizante
 - Mapeamento configurável de tipos de atividade
 - Cleanup automático de gatos inativos
+- Streaming via FastAPI com informações sobrepostas
+- Configuração flexível para exibição local e streaming
+- Opções para habilitar/desabilitar interface e informações
 
 ### Melhorado
 - Otimização do algoritmo de detecção de atividade

@@ -120,6 +120,45 @@ CAT_INACTIVITY_TIMEOUT = 5  # Remove gato após 5 segundos sem detecção
 - Recursos liberados adequadamente
 - Logs registrados sobre a limpeza
 
+### 5. Modo Headless com Streaming
+
+**Objetivo**: Executar o sistema sem interface gráfica local, mas com streaming via rede.
+
+**Configuração**:
+```env
+# .env
+STREAMING_ENABLED=true
+STREAMING_PORT=8080
+STREAMING_HOST=0.0.0.0
+DISPLAY_ENABLED=false
+DISPLAY_INFO_ENABLED=true
+```
+
+**Resultado Esperado**:
+- Nenhuma janela é aberta localmente
+- Streaming disponível em http://[IP]:8080/stream
+- Todas as informações sobrepostas visíveis no streaming
+- Menor uso de recursos do sistema
+
+### 6. Streaming Sem Informações
+
+**Objetivo**: Fornecer streaming de vídeo limpo sem sobreposições.
+
+**Configuração**:
+```env
+# .env
+STREAMING_ENABLED=true
+STREAMING_PORT=8000
+STREAMING_HOST=0.0.0.0
+DISPLAY_ENABLED=false
+DISPLAY_INFO_ENABLED=false
+```
+
+**Resultado Esperado**:
+- Streaming disponível com vídeo limpo
+- Nenhuma informação sobreposta
+- Útil para gravação ou análise posterior
+
 ## Configurações Avançadas
 
 ### Otimização de Desempenho

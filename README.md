@@ -41,6 +41,7 @@ cattus-activities-identifier/
 - **Rastreamento em Tempo Real**: Monitora continuamente as posições e atividades
 - **Integração com API**: Envia dados de atividades para sistema externo
 - **Interface Visual**: Exibe informações em tempo real na tela
+- **Streaming via Web**: Fornece streaming HTTP com informações sobrepostas
 - **Configuração Flexível**: Sistema altamente configurável via arquivo de configuração
 - **Logging Completo**: Sistema de logs detalhado para monitoramento e debug
 - **Tratamento de Erros**: Robustez na conexão com câmeras e APIs
