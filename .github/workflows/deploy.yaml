@@ -21,10 +21,10 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           cd /home/ubuntu/
-          if [ ! -d "cattus-websocket" ]; then
+          if [ ! -d "cattus-activities-identifier" ]; then
             git clone https://github.com/${{ github.repository }}.git
           fi
-          cd cattus-websocket
+          cd cattus-activities-identifier
           git checkout main
           git pull origin main
           docker compose up -d --build
