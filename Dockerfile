@@ -17,4 +17,4 @@ RUN mkdir -p /app/config
 EXPOSE 8000
 
 # Comando padrão para executar a aplicação
-CMD ["python", "-m src.main"]
+CMD ["python", "src/main"]
