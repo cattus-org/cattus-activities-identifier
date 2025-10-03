@@ -14,4 +14,4 @@ COPY . .
 EXPOSE 8000
 
 # Comando padrão para executar a aplicação
-CMD ["python", "src/main.py"]
+CMD ["python", "-m", "src.main"]
