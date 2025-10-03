@@ -10,11 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código fonte
 COPY . .
 
-# Criar diretório para o .env
-RUN mkdir -p /app/config
-
 # Expôr porta para streaming
 EXPOSE 8000
 
 # Comando padrão para executar a aplicação
-CMD ["python", "src/main"]
+CMD ["python", "src/main.py"]
