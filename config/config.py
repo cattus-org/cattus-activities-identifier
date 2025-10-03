@@ -37,7 +37,7 @@ class Config:
         self.WINDOW_NAME = "Deteccao Gato/Pote"
 
         # URL da câmera RTSP
-        self.RTSP_URL = "rtsp://admin:cattuscamera2025@192.168.1.72:554/onvif1"
+        self.RTSP_URL = os.getenv("CAMERA_URL")
         
         # Configurações da câmera
         self.CAMERA_WIDTH = 1920
