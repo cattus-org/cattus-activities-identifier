@@ -95,7 +95,7 @@ class StreamingManager:
             self.is_running = True
             self.server_thread = threading.Thread(target=self._run_server, daemon=True)
             self.server_thread.start()
-            self.logger.info(f"Servidor de streaming iniciado em http://{self.config.STREAMING_HOST}:{self.config.STREAMING_PORT}")
+            self.logger.info(f"Servidor de streaming iniciado.")
         except Exception as e:
             self.logger.error(f"Erro ao iniciar servidor de streaming: {e}")
             self.is_running = False
