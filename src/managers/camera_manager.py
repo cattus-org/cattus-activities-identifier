@@ -38,7 +38,7 @@ class CameraManager:
                 self.cap.release()
                 self.cap = None
 
-            self.logger.info(f"Tentando conectar na câmera RTSP: {self.rtsp_url}")
+            self.logger.info(f"Tentando conectar na câmera RTSP...")
 
             max_retries = 5
             retry_delay = 5  # segundos
