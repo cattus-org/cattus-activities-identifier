@@ -54,6 +54,7 @@ class APIClient:
         cat_id = int(cat_id)
 
         payload = {
+            'cameraId': 1,
             'catId': cat_id,
             'title': activity_title,
             'startedAt': started_at,
