@@ -13,7 +13,7 @@ class Config:
         self.API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:3000")  # Ajuste para sua URL
         self.API_KEY = os.getenv("API_KEY")  # Token de autenticação (fallback para valor padrão)
         self.API_TIMEOUT = 10  # Timeout em segundos
-        self.API_ENABLED = False  # Flag para habilitar/desabilitar envio para API
+        self.API_ENABLED = True  # Flag para habilitar/desabilitar envio para API
 
         # Configurações do Streaming via FastAPI
         self.STREAMING_ENABLED = True
@@ -71,10 +71,10 @@ class Config:
         self.BOWL_CACHE_CONFIDENCE_THRESHOLD = 5  # Número mínimo de detecções para considerar posição confiável
 
         # Thresholds para detecção de atividade
-        self.ENTER_THRESH = 0.45
-        self.EXIT_THRESH = 0.50
-        self.MIN_TIME_START = 4.0
-        self.MIN_TIME_STOP = 3.0
+        self.ENTER_THRESH = 0.80
+        self.EXIT_THRESH = 0.85
+        self.MIN_TIME_START = 4.0 # tempo para iniciar a atividade no banco
+        self.MIN_TIME_STOP = 4.0 # tempo para parar a atividade no banco
         self.WINDOW_SIZE = 8
 
         # Tempo em segundos para manter memória de gato inativo

@@ -98,9 +98,12 @@ class ActivityTracker:
                 elif agora - dados["tempo_estado"] >= self.config.MIN_TIME_STOP:
                     dur = agora - dados["start_time"]
                     self.logger.info(f"Gato ID {cat_id} parou de comer após {dur:.1f}s")
-                    # Notifica fim da atividade (converte timestamp para datetime)
-                    start_datetime = datetime.fromtimestamp(dados["start_time"])
-                    self._on_activity_end(cat_id, "eating", start_datetime)
+                    if dur >= self.config.MIN_ACTIVITY_DURATION_TO_REGISTER:
+                        # Notifica fim da atividade (converte timestamp para datetime)
+                        start_datetime = datetime.fromtimestamp(dados["start_time"])
+                        self._on_activity_end(cat_id, "eating", start_datetime)
+                    else:
+                        self.logger.info(f"Atividade de gato ID {cat_id} descartada por ser menor que {self.config.MIN_ACTIVITY_DURATION_TO_REGISTER} segundos")
                     dados["comendo"] = False
                     dados["start_time"] = None
             else:
