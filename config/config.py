@@ -21,7 +21,7 @@ class Config:
         self.STREAMING_HOST = "0.0.0.0"
 
         # Mapeamento de tipos de atividade (opcional)
-        self.DISPLAY_INFO_ENABLED = True
+        self.DISPLAY_INFO_ENABLED = False
         self.ACTIVITY_TYPE_MAPPING = {
             "eating": "eat",
             "drinking": "drink",
@@ -92,3 +92,6 @@ class Config:
         ], dtype=np.float32)
 
         self.dist_coeffs = np.zeros((5, 1), dtype=np.float32)
+
+        # Flag para mostrar marcador de teste no frame
+        self.DEBUG_SHOW_TEST_MARKER = True  # Se True, desenha etiqueta ArUco ID 0 no canto do frame

@@ -141,6 +141,16 @@ class MarkerDetector:
     
     def detect_markers(self, frame):
         """Detecta marcadores no frame e retorna suas posições"""
+        # Se a flag de debug estiver ativada, desenha marcador ArUco ID 0 um pouco afastado do canto superior esquerdo
+        if getattr(self.config, 'DEBUG_SHOW_TEST_MARKER', False):
+            marker_id = 0
+            marker_size_px = 100  # Tamanho do marcador em pixels
+            offset_x, offset_y = 30, 30  # Distância do canto superior esquerdo
+            marker_img = cv2.aruco.generateImageMarker(self.aruco_dict, marker_id, marker_size_px)
+            marker_img_bgr = cv2.cvtColor(marker_img, cv2.COLOR_GRAY2BGR)
+            # Insere o marcador com offset
+            frame[offset_y:offset_y+marker_size_px, offset_x:offset_x+marker_size_px] = marker_img_bgr
+
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         corners, ids, _ = self.detector.detectMarkers(gray)
         posicoes = {}
