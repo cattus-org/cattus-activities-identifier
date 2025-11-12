@@ -26,5 +26,6 @@ jobs:
           fi
           cd cattus-activities-identifier
           git checkout main
-          git pull origin main
+          set -e
+          git pull origin main || (git reset --hard HEAD && git pull origin main)
           docker compose up -d --build
