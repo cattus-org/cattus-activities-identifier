@@ -63,7 +63,7 @@ class StreamingManager:
             with self.frame_lock:
                 if self.current_frame is not None:
                     # Converte o frame para JPEG
-                    ret, buffer = cv2.imencode('.jpg', self.current_frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                    ret, buffer = cv2.imencode('.jpg', self.current_frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
                     if ret:
                         frame_bytes = buffer.tobytes()
                         frame_data = frame_bytes
