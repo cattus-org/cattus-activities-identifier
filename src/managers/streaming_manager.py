@@ -58,22 +58,26 @@ class StreamingManager:
 
     async def _generate_stream(self) -> AsyncGenerator[bytes, None]:
         """Gera o stream de vídeo assíncrono"""
+        last_frame_data = None
         while self.is_running:
             frame_data = None
             with self.frame_lock:
                 if self.current_frame is not None:
-                    # Converte o frame para JPEG
-                    ret, buffer = cv2.imencode('.jpg', self.current_frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
-                    if ret:
-                        frame_bytes = buffer.tobytes()
-                        frame_data = frame_bytes
+                    # Converte o frame para JPEG apenas se mudou
+                    frame_id = id(self.current_frame)
+                    if frame_id != getattr(self, '_last_frame_id', None):
+                        ret, buffer = cv2.imencode('.jpg', self.current_frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
+                        if ret:
+                            last_frame_data = buffer.tobytes()
+                            self._last_frame_id = frame_id
+                    frame_data = last_frame_data
 
             if frame_data:
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
-
-            # Pequeno delay para controlar o FPS
-            await asyncio.sleep(0.03)  # Aproximadamente 30 FPS
+            
+            # Sleep mais longo para economizar CPU quando não há mudanças
+            await asyncio.sleep(0.05)  # 20 FPS máximo
 
     def update_frame(self, frame):
         """Atualiza o frame atual para streaming"""

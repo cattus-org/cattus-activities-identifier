@@ -112,17 +112,17 @@ class CameraManager:
 
             ret, frame = cap.read()
 
-            discard_count = 0
-            while discard_count < max_discard_frames:
+            # Descarta frames da buffer sem loop apertado
+            for _ in range(max_discard_frames):
                 ret2, frame2 = cap.read()
                 if not ret2:
                     break
                 frame = frame2
-                discard_count += 1
 
             if not ret or not self._is_frame_valid(frame):
                 self.consecutive_failures += 1
-                self.logger.warning(f"Falha ao capturar frame válido. Falhas consecutivas: {self.consecutive_failures}")
+                if self.consecutive_failures % 5 == 0:  # Log a cada 5 falhas, não todas
+                    self.logger.warning(f"Falha ao capturar frame válido. Falhas consecutivas: {self.consecutive_failures}")
 
                 if self.consecutive_failures >= self.config.MAX_CONSECUTIVE_FAILURES:
                     self.logger.warning("Número máximo de falhas consecutivas atingido. Reiniciando conexão da câmera.")
@@ -136,7 +136,7 @@ class CameraManager:
             with self.frame_lock:
                 self.latest_frame = frame
 
-            time.sleep(0.03)  # Ajuste do sleep para balancear uso de CPU e delay
+            time.sleep(0.04)  # ~25 FPS, menos agressivo
         self.logger.info("Capture thread stopped.")
     def release(self):
         self.logger.info("Releasing camera manager resources.")

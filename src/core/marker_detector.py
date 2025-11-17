@@ -268,17 +268,14 @@ class MarkerDetector:
         inactive_cats = []
 
         # Identifica gatos inativos
-        for cat_id, last_seen_time in self.cat_last_seen.items():
+        for cat_id, last_seen_time in list(self.cat_last_seen.items()):
             if current_time - last_seen_time > CAT_INACTIVITY_TIMEOUT:
                 inactive_cats.append(cat_id)
 
         # Remove gatos inativos
         for cat_id in inactive_cats:
-            if cat_id in self.detected_cats:
-                del self.detected_cats[cat_id]
-            if cat_id in self.cat_last_seen:
-                del self.cat_last_seen[cat_id]
-            self.logger.debug(f"Removido gato ID {cat_id} do cache (não detectado há mais de {CAT_INACTIVITY_TIMEOUT}s)")
+            self.detected_cats.pop(cat_id, None)
+            self.cat_last_seen.pop(cat_id, None)
 
         return len(inactive_cats)
 

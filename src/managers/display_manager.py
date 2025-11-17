@@ -41,14 +41,6 @@ class DisplayManager:
         # Desenha informações do cache do pote se disponível
         if marker_detector is not None:
             self._draw_bowl_cache_info(frame, marker_detector)
-        self._draw_distances(frame, posicoes, estado)
-
-        # Desenha estado de alimentação
-        self._draw_feeding_status(frame, estado)
-
-        # Desenha informações do cache do pote se disponível
-        if marker_detector is not None:
-            self._draw_bowl_cache_info(frame, marker_detector)
     
     def _draw_marker_info(self, frame, posicoes):
         """Desenha informações dos marcadores detectados"""
