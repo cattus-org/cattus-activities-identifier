@@ -95,3 +95,7 @@ class Config:
 
         # Flag para mostrar marcador de teste no frame
         self.DEBUG_SHOW_TEST_MARKER = True  # Se True, desenha etiqueta ArUco ID 0 no canto do frame
+
+        # Flag para visualizar marcadores ArUco detectados (contornos, eixos e IDs)
+        self.SHOW_MARKER_VISUALIZATION = False  # Se False, remove as marcações visuais dos marcadores detectados
+

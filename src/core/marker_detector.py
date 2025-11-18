@@ -157,8 +157,9 @@ class MarkerDetector:
         bowl_detected = False
 
         if ids is not None:
-            # Desenha marcadores detectados
-            cv2.aruco.drawDetectedMarkers(frame, corners, ids)
+            # Desenha marcadores detectados se habilitado
+            if self.config.SHOW_MARKER_VISUALIZATION:
+                cv2.aruco.drawDetectedMarkers(frame, corners, ids)
 
             for i, marker_id in enumerate(ids.flatten()):
                 # Converte marker_id para int Python nativo para evitar problemas de serialização
@@ -171,21 +172,22 @@ class MarkerDetector:
                 if tvec is None:
                     continue
 
-                # Desenha eixos do marcador
-                cv2.drawFrameAxes(
-                    frame,
-                    self.config.camera_matrix,
-                    self.config.dist_coeffs,
-                    rvec, tvec, 0.03
-                )
+                # Desenha eixos do marcador se habilitado
+                if self.config.SHOW_MARKER_VISUALIZATION:
+                    cv2.drawFrameAxes(
+                        frame,
+                        self.config.camera_matrix,
+                        self.config.dist_coeffs,
+                        rvec, tvec, 0.03
+                    )
 
-                # Adiciona label com ID do marcador
-                center = np.mean(corners[i][0], axis=0).astype(int)
-                cv2.putText(
-                    frame, f"ID:{marker_id}",
-                    (center[0] - 20, center[1] - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2
-                )
+                    # Adiciona label com ID do marcador
+                    center = np.mean(corners[i][0], axis=0).astype(int)
+                    cv2.putText(
+                        frame, f"ID:{marker_id}",
+                        (center[0] - 20, center[1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 2
+                    )
 
                 # Usa o ID do marcador como chave em vez do nome
                 if info["tipo"] == "gato":
